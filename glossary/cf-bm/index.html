@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is the cf_bm cookie? Cloudflare Bot Management, explained</title>
+<meta name="description" content="cf_bm is Cloudflare's bot-management cookie: a short-lived verdict that is bound to the client, not to the page. What the score means, why it never replaces cf_clearance, and why it expires in 30 minutes.">
+<link rel="canonical" href="https://seencxy.github.io/glossary/cf-bm/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<h1>What is the <code>cf_bm</code> cookie?</h1>
+<p class="meta">Last reviewed 10 November 2026 · 4 min read</p>
+<p><strong>Short answer:</strong> <code>cf_bm</code> is the cookie Cloudflare's Bot Management product sets to remember how it scored a client. It is a verdict, not a pass: a low score on <code>cf_bm</code> gets you more challenges, and no cookie value you can edit will raise it. It is separate from <code>cf_clearance</code>, which is issued only after a challenge has actually been passed.</p>
+
+<h2>cf_bm versus cf_clearance</h2>
+<p>The two are routinely confused, and the confusion wastes a lot of engineering time.</p>
+<table>
+<tr><th></th><th><code>cf_bm</code></th><th><code>cf_clearance</code></th></tr>
+<tr><td>What it records</td><td>A score Cloudflare computed for the client</td><td>The fact that this client solved a challenge</td></tr>
+<tr><td>Who can get it</td><td>Almost any visitor, including bots</td><td>Only after a challenge or JS check passes</td></tr>
+<tr><td>Typical lifetime</td><td>About 30 minutes</td><td>Set by the zone's challenge passage setting</td></tr>
+<tr><td>Effect</td><td>Changes which rules and challenges you meet</td><td>Skips the challenge while it lasts</td></tr>
+</table>
+<p>So: having <code>cf_bm</code> does not mean you are through. Not having it does not mean you are blocked. The cookie that actually decides access on a challenged path is <code>cf_clearance</code> — see <a href="/glossary/cf-clearance/">that entry</a>.</p>
+
+<h2>Why it cannot be forged</h2>
+<p><code>cf_bm</code> is a signed blob validated at the edge against your connection. It was issued to a specific TLS fingerprint, IP range and user agent combination. Copy it to a client that looks different and the value is either ignored or treated as a mismatch — which is worse than not sending it at all, because a mismatched verdict cookie is itself a signal.</p>
+
+<h2>The 30-minute rhythm</h2>
+<p>Because the lifetime is short and the score is re-evaluated, whatever keeps your score low will keep coming back. If you see periodic 403s or challenge pages at roughly half-hour intervals in a long crawl, that is not random: the verdict expires, Cloudflare re-scores, and your request pattern is what it scores. The two things that move the score most are request rate consistency and whether your TLS/HTTP2 fingerprint matches the browser you claim to be.</p>
+
+<h2>What actually helps</h2>
+<ul>
+<li><strong>Keep the client stable.</strong> One fingerprint, one user agent, one IP per session. Rotating any of them discards the little trust <code>cf_bm</code> was carrying.</li>
+<li><strong>Solve once, keep <code>cf_clearance</code>.</strong> If a path is challenged, the durable credential is <code>cf_clearance</code>; a Turnstile or Managed Challenge solution is how you get one. The <a href="https://www.tiam.codes/docs/turnstile">Turnstile endpoint</a> documents the token flow.</li>
+<li><strong>Do not chase the score.</strong> There is no API to raise it, and no header that sets it. Effort belongs on the challenge, not the verdict.</li>
+</ul>
+
+<h2>Where people go wrong</h2>
+<p>The frequent mistake is exporting a whole cookie jar from a browser that passed a challenge and expecting it to work elsewhere. The jar usually contains <code>cf_bm</code> from an earlier visit under a different fingerprint; the edge reads that as a contradiction before it even looks at <code>cf_clearance</code>. Export the clearance cookie and the identity it was issued to, or neither.</p>
+
+<h2>FAQ</h2>
+<p><strong>Is <code>cf_bm</code> the same as <code>cf_clearance</code>?</strong> No, and the difference decides your architecture. cf_bm records Cloudflare's verdict about the client; cf_clearance records that the client passed a challenge. Only the second one skips the challenge.</p>
+<p><strong>Why does <code>cf_bm</code> expire so quickly?</strong> It is deliberately short-lived, around 30 minutes, so a verdict can be re-evaluated against current behaviour instead of being held forever by an old cookie.</p>
+<p><strong>Can I set <code>cf_bm</code> myself?</strong> No. It is signed and validated against the connection it was issued to. A value you invent is discarded, and a mismatched one is a stronger signal than sending nothing.</p>
+
+<footer>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>, <a href="/glossary/px3/">_px3</a>.</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Is cf_bm the same as cf_clearance","acceptedAnswer":{"@type":"Answer","text":"No, and the difference decides your architecture. cf_bm records Cloudflare's verdict about the client; cf_clearance records that the client passed a challenge. Only the second one skips the challenge."}},{"@type":"Question","name":"Why does cf_bm expire so quickly","acceptedAnswer":{"@type":"Answer","text":"It is deliberately short-lived, around 30 minutes, so a verdict can be re-evaluated against current behaviour instead of being held forever by an old cookie."}},{"@type":"Question","name":"Can I set cf_bm myself","acceptedAnswer":{"@type":"Answer","text":"No. It is signed and validated against the connection it was issued to. A value you invent is discarded, and a mismatched one is a stronger signal than sending nothing."}}]}
+</script>
+</body>
+</html>

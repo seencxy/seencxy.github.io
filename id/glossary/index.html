@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Glosarium cookie anti-bot: _abck, reese84, dan lainnya</title>
-<meta name="description" content="Penjelasan bahasa Indonesia untuk cookie anti-bot: _abck dari Akamai Bot Manager dan reese84 dari Imperva. Cookie-cookie ini tidak saling menggantikan, dan mencampurnya adalah penyebab utama scraping gagal.">
+<title>Glosarium cookie anti-bot — _abck, reese84, _px3, cf_clearance</title>
+<meta name="description" content="Cookie _abck dari Akamai, reese84 dari Imperva, _px3 dari PerimeterX, dan cf_clearance dari Cloudflare. Apa yang sebenarnya dibuktikan masing-masing cookie, ke apa ia terikat, dan mengapa umurnya hanya beberapa menit.">
 <link rel="canonical" href="https://seencxy.github.io/id/glossary/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/">
@@ -15,12 +15,15 @@ body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.7 -apple-syst
 h1{line-height:1.3;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.35;font-size:1.2rem}
 h3{margin-top:1.4rem;font-size:1.02rem}.meta{color:#666;font-size:.9rem}
 code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
-table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
-th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}th{background:#fafafa}
 footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
 nav a{margin-right:1rem}.card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.1rem;margin:1rem 0}
 .card h3{margin:0 0 .4rem;font-size:1.05rem}.card p{margin:0;color:#333}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ItemList","name":"Glosarium cookie anti-bot","inLanguage":"id","itemListElement":[
+{"@type":"ListItem","position":1,"name":"_abck — Akamai Bot Manager","url":"https://seencxy.github.io/id/glossary/akamai-abck/"},
+{"@type":"ListItem","position":2,"name":"reese84 — Imperva / Incapsula","url":"https://seencxy.github.io/id/glossary/reese84/"}]}
+</script>
 </head>
 <body>
 <nav><a href="/">Anti-bot engineering notes</a><a href="/id/glossary/">Glosarium</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="/ja/glossary/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
@@ -38,6 +41,17 @@ nav a{margin-right:1rem}.card{border:1px solid #e5e5e5;border-radius:8px;padding
 <h3><a href="/id/glossary/reese84/">reese84</a> — Imperva / Incapsula</h3>
 <p>Token sensor yang ditandatangani oleh skrip Imperva. Umurnya pendek, umumnya 5 sampai 15 menit, dan terikat pada satu situs serta pada sesi yang menyelesaikannya.</p>
 </div>
+
+<h2>Urutan membacanya</h2>
+<p>Tidak ada satu cookie pun yang bermakna sendirian. Tentukan dulu vendornya, baru kemudian samakan hal-hal yang mengikatnya: alamat IP, <code>User-Agent</code> dan sidik jari TLS, serta waktu. Saat muncul 401 atau 403, pisahkan dulu lapisannya — misalnya dengan <a href="/id/glossary/reese84/#403">tabel triase 403 di halaman reese84</a> — sebelum menaikkan kemampuan solver.</p>
+<p>Untuk mengenali vendor dari nama cookie, tiga hal sudah cukup: header respons (<code>Server</code>, <code>X-CDN</code>, <code>X-Akamai-*</code>), path skrip sensor di dalam HTML, dan nama cookienya sendiri. Ketiganya hampir tidak pernah bertentangan.</p>
+
+<h2>Artikel terkait</h2>
+<ul>
+<li><a href="https://antibotedev.blogspot.com/2026/11/cookie-anti-bot-apa-itu-abck-dan.html">Cookie anti-bot: apa itu _abck dan reese84, dan mengapa keduanya cepat kedaluwarsa</a> (Blogger)</li>
+<li><a href="https://solvehub.hashnode.dev/cookie-anti-bot-apa-itu-abck-dan-reese84-dan-mengapa-keduanya-cepat-kedaluwarsa">Versi Hashnode dari artikel yang sama</a></li>
+<li><a href="https://medium.com/@seencxy/cookie-anti-bot-apa-itu-abck-dan-reese84-dan-mengapa-keduanya-cepat-kedaluwarsa-fa3e704286f2">Versi Medium</a></li>
+</ul>
 
 <h2>Cookie lain di edisi bahasa Inggris</h2>
 <p><code>cf_clearance</code> dan <code>cf_bm</code> (Cloudflare), DataDome, <code>_px3</code> (PerimeterX), serta <code>aws-waf-token</code> (AWS WAF) dibahas di edisi bahasa Inggris.<br>

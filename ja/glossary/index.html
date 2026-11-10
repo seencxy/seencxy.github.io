@@ -37,8 +37,18 @@ nav a{margin-right:1rem}
 <p>Imperva のスクリプトが発行するセンサー判定。寿命は短く（おおむね 5〜15 分）、サイト単位で、解いたセッションに紐づきます。</p>
 </div>
 
-<h2>英語版で扱っている他の Cookie</h2>
-<p>Cloudflare の <code>cf_clearance</code> と <code>cf_bm</code>、DataDome、PerimeterX の <code>_px3</code>、AWS WAF の <code>aws-waf-token</code> は英語の用語集にあります。<br>
+<div class="card">
+<h3><a href="/ja/glossary/px3/">_px3</a> ― PerimeterX / HUMAN</h3>
+<p>センサー判定の後に発行される署名付きパス。暗号化されたペイロード、発行時刻、HMAC 署名でできており、ペイロード内の寿命はクッキーの Expires とは別物です。</p>
+</div>
+
+<div class="card">
+<h3><a href="/ja/glossary/cf-clearance/">cf_clearance</a> ― Cloudflare</h3>
+<p>JS チャレンジ、Managed Challenge、Turnstile のいずれかを通過した後にエッジが発行する領収書。寿命は約 30 分で、IP や User-Agent が変わると失効します。</p>
+</div>
+
+<h2>英語版にのみある Cookie</h2>
+<p>DataDome の <code>datadome</code>、Cloudflare の <code>cf_bm</code>、AWS WAF の <code>aws-waf-token</code> は今のところ英語の用語集にのみあります。<br>
 <a href="/glossary/" hreflang="en" lang="en">Anti-bot cookie glossary（English）</a></p>
 
 <h2>関連</h2>

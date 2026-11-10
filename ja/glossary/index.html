@@ -3,25 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>アンチボット Cookie 用語集 ― 各ベンダーのクッキーが証明するもの</title>
-<meta name="description" content="Cloudflare・Akamai・Imperva・PerimeterX などのアンチボット Cookie を日本語で解説する用語集。クッキーは交換可能ではなく、混同がスクレイピング失敗の主因です。">
+<title>アンチボット Cookie 用語集 ― _abck・reese84・_px3・cf_clearance</title>
+<meta name="description" content="Akamai の _abck、Imperva の reese84、PerimeterX の _px3、Cloudflare の cf_clearance。各クッキーが実際に何を証明しているのか、どこに紐づくのか、なぜ数分で失効するのかを 1 ページずつ解説します。">
 <link rel="canonical" href="https://seencxy.github.io/ja/glossary/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/">
 <link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/">
 <style>
-body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.7 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;color:#111}
-h1{line-height:1.3;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.35;font-size:1.15rem}
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.35;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.4}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
 .card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.1rem;margin:1rem 0}
-.card h3{margin:0 0 .4rem;font-size:1.05rem}.card p{margin:0;color:#333}
-footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
-nav a{margin-right:1rem}
+.card h3{margin:0 0 .4rem;font-size:1.05rem}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}.card,footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"ItemList","name":"アンチボット Cookie 用語集","inLanguage":"ja","itemListElement":[
+{"@type":"ListItem","position":1,"name":"_abck ― Akamai Bot Manager","url":"https://seencxy.github.io/ja/glossary/akamai-abck/"},
+{"@type":"ListItem","position":2,"name":"reese84 ― Imperva / Incapsula","url":"https://seencxy.github.io/ja/glossary/reese84/"},
+{"@type":"ListItem","position":3,"name":"_px3 ― PerimeterX / HUMAN","url":"https://seencxy.github.io/ja/glossary/px3/"},
+{"@type":"ListItem","position":4,"name":"cf_clearance ― Cloudflare","url":"https://seencxy.github.io/ja/glossary/cf-clearance/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">用語集</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">用語集</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="/id/glossary/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
 
 <h1>アンチボット Cookie 用語集</h1>
 <p class="meta">最終確認 2026年11月10日</p>
@@ -47,9 +56,24 @@ nav a{margin-right:1rem}
 <p>JS チャレンジ、Managed Challenge、Turnstile のいずれかを通過した後にエッジが発行する領収書。寿命は約 30 分で、IP や User-Agent が変わると失効します。</p>
 </div>
 
+<h2>読む順番</h2>
+<p>どれも単独では意味を持ちません。まずベンダーを確定し、そのうえで紐づけ先（IP、User-Agent と TLS フィンガープリント、時間）を揃えるのが先です。401 や 403 が出たときは、解決器の性能を上げる前に <a href="/ja/glossary/reese84/#403">403 の切り分け表</a>のような層の分離を先に済ませてください。</p>
+<p>クッキー名からベンダーを引くときは、次の 3 点で足ります。レスポンスヘッダ（<code>Server</code>、<code>X-CDN</code>、<code>X-Akamai-*</code>）、HTML 内のセンサースクリプトのパス、そしてクッキー名そのもの。3 つが食い違うことはほとんどありません。</p>
+
+<h2>関連する記事</h2>
+<ul>
+<li><a href="https://zenn.dev/seencxy/articles/3898d1a4c2bba7">PerimeterX の _px3 クッキー：失効を決める 2 つの時計と、クッキーが存在しない s2s の話</a>（Zenn・日本語）</li>
+<li><a href="https://zenn.dev/seencxy/articles/173c773fe20032">Akamai の _abck：Cookie は「渡される鍵」ではなく、サーバーが書き換え続ける台帳</a>（Zenn・日本語）</li>
+<li><a href="https://zenn.dev/seencxy/articles/7b567388f92e5c">Imperva の reese84 クッキー：正体と、失効する理由と、使い回す方法</a>（Zenn・日本語）</li>
+<li><a href="https://zenn.dev/seencxy/scraps/7d535d97dbfd5a">アンチボット Cookie の読み方（スクラップ）</a>（Zenn・日本語）</li>
+</ul>
+
 <h2>英語版にのみある Cookie</h2>
 <p>DataDome の <code>datadome</code>、Cloudflare の <code>cf_bm</code>、AWS WAF の <code>aws-waf-token</code> は今のところ英語の用語集にのみあります。<br>
 <a href="/glossary/" hreflang="en" lang="en">Anti-bot cookie glossary（English）</a></p>
+
+<h2>他の言語</h2>
+<p><a href="/id/glossary/" hreflang="id" lang="id">Glosarium cookie anti-bot（Bahasa Indonesia）</a></p>
 
 <h2>関連</h2>
 <p><a href="/">記事一覧：アンチボットエンジニアリング</a></p>

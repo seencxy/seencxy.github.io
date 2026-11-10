@@ -4,27 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What is the cf_clearance cookie? Cloudflare clearance, explained</title>
-<meta name="description" content="cf_clearance is the cookie Cloudflare issues after a Managed Challenge is passed. What it contains, why it expires in 30 minutes, why it breaks when you rotate proxies, and how to reuse it properly.">
+<meta name="description" content="cf_clearance is the cookie Cloudflare sets after a challenge is passed. What it is bound to, why the default lifetime is 30 minutes, why rotating proxies breaks it, and how to tell a Turnstile token from clearance.">
 <link rel="canonical" href="https://seencxy.github.io/glossary/cf-clearance/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/cf-clearance/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/cf-clearance/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/cf-clearance/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What is the cf_clearance cookie? Cloudflare clearance, explained">
+<meta property="og:description" content="What cf_clearance is bound to, why it dies on a new IP or in a different client, and how it differs from a Turnstile token.">
+<meta property="og:url" content="https://seencxy.github.io/glossary/cf-clearance/">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
-h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.3}h3{margin-top:1.5rem;font-size:1.02rem}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
-table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
-th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
-nav a{margin-right:1rem}
+pre{background:#f6f6f6;padding:.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}pre{background:#1c1c1c}th,td{border-color:#333}footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"What is the cf_clearance cookie? Cloudflare clearance, explained","description":"cf_clearance: where it comes from, what it is bound to, why it expires in about 30 minutes, and why a Turnstile token is not the same thing.","inLanguage":"en","datePublished":"2026-11-08","dateModified":"2026-11-10","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://seencxy.github.io/glossary/cf-clearance/"},"about":[{"@type":"Thing","name":"cf_clearance cookie"},{"@type":"Thing","name":"Cloudflare Managed Challenge"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"Glossary","item":"https://seencxy.github.io/glossary/"},{"@type":"ListItem","position":3,"name":"cf_clearance","item":"https://seencxy.github.io/glossary/cf-clearance/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/cf-clearance/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/cf-clearance/" hreflang="ja" lang="ja">日本語</a><a href="/id/glossary/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
 
 <h1>What is the <code>cf_clearance</code> cookie?</h1>
-<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+<p class="meta">Last reviewed 10 November 2026 · 7 min read</p>
 
 <p><strong>Short answer:</strong> <code>cf_clearance</code> is the cookie Cloudflare sets on your browser after it has decided you are not a bot. It is not a token you solve — it is a receipt issued by Cloudflare's edge, stamped with the challenge you passed, bound to your IP address and user agent, and valid for a limited time (30 minutes by default). Everything that goes wrong with it later goes wrong for one of those three reasons.</p>
+
+<p>The word "receipt" is the part people skip. A token answers a question your origin asks. A receipt records that a connection finished something at the edge — which is why copying it into a different connection, from a different program, on a different address, produces a challenge rather than a 200.</p>
 
 <h2>Where it comes from</h2>
 <p>The cookie appears only after one of three challenge types completes:</p>
@@ -52,6 +71,45 @@ nav a{margin-right:1rem}
 <li><code>cf_chl_2</code> / <code>cf_chl_prog</code> — transient state of the challenge currently running. If you see these, you have not passed yet.</li>
 <li><code>cf_clearance</code> — the only one that means "past the edge".</li>
 </ul>
+<p>There is a fourth thing worth separating: the <code>cf_clearance</code> cookie is not the same as the <code>cf-mitigated</code> response header, which tells you the response was produced by the edge rather than your origin. Seeing that header means the challenge was served; it says nothing about whether you passed it. The related <a href="/glossary/cf-bm/">__cf_bm cookie</a> has its own page for the same reason — it is easy to test for the wrong one.</p>
+
+<h2>What it looks like in code</h2>
+<p>The shape that works is one session, one exit, one client stack. Pass the challenge once, then keep using that exact context.</p>
+<pre><code>from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    ctx = browser.new_context(proxy={"server": PROXY})   # pin the exit
+    page = ctx.new_page()
+    page.goto(url)
+
+    # A JS or Managed Challenge resolves inside the page; wait for it to settle
+    # rather than polling the same URL from a second client.
+    page.wait_for_load_state("networkidle")
+
+    jar = {c["name"]: c["value"] for c in ctx.cookies()}
+    print("turnstile" in jar or "cf_clearance" in jar, sorted(jar))
+
+    # Reuse through this context, not by exporting the header elsewhere.
+    resp = ctx.request.get(api_url)
+    print(resp.status, resp.headers.get("cf-mitigated"))</code></pre>
+<pre><code>import time, requests
+
+# If you must carry the cookie by hand, carry the identity with it.
+s = requests.Session()
+s.headers.update({
+    "User-Agent": SAME_UA_AS_THE_BROWSER,
+    "Accept-Language": "en-US,en;q=0.9",
+})
+s.cookies.set("cf_clearance", VALUE, domain="example.com")
+s.proxies = {"http": EXIT_IP, "https": EXIT_IP}   # the exit that earned it
+
+issued = time.time()
+r = s.get(url)
+if r.status_code in (403, 503) and "cf-mitigated" in r.headers:
+    # Refused at the edge: the cookie is expired, or the exit/UA changed.
+    reissue = time.time() - issued &gt; 25 * 60
+    print("expired" if reissue else "fingerprint or IP mismatch")</code></pre>
 
 <h2>How to get one on purpose</h2>
 <p>There are three honest paths, and the third is the one people skip:</p>
@@ -70,20 +128,34 @@ nav a{margin-right:1rem}
 </ul>
 <p>The fix is architectural, not a better solver: pin one session to one exit IP, one fingerprint and one cookie, and refresh the whole triple when the cookie expires.</p>
 
+<h2>Reading a 403 from Cloudflare</h2>
+<table>
+<tr><th>What you see</th><th>What it usually means</th><th>First thing to change</th></tr>
+<tr><td><code>403</code> with a challenge page and <code>cf-mitigated: challenge</code></td><td>The edge served a challenge instead of your origin. You have no valid clearance for this connection.</td><td>Check the cookie's age and the exit IP before changing anything else.</td></tr>
+<tr><td><code>403</code> with <code>cf-mitigated: challenge</code> and a fresh cookie</td><td>The cookie is not accepted: IP, UA or TLS changed between issuance and use</td><td>Re-issue from the same client stack that will make the requests</td></tr>
+<tr><td><code>1020</code> in the page body</td><td>A firewall rule blocked the request outright — not a challenge, not solvable</td><td>Different rule, different path. A clearance cookie cannot fix an access rule.</td></tr>
+<tr><td><code>429</code> or intermittent challenges under load</td><td>Rate-based rules, or the session looks like several clients sharing one cookie</td><td>One worker per cookie; slow down before rotating anything</td></tr>
+<tr><td><code>200</code> on HTML, <code>403</code> on the JSON endpoint</td><td>The API path has a separate rule set from the page</td><td>Check whether the endpoint needs clearance at all — many do not</td></tr>
+</table>
+
 <h2>FAQ</h2>
 <p><strong>Does <code>cf_clearance</code> work on a different subdomain?</strong> No. Clearance is per hostname and zone.</p>
 <p><strong>Can I generate it without a browser?</strong> Not by computing it. Only by completing the challenge, which needs a JS engine or a service that runs one for you.</p>
 <p><strong>Why do I get a 403 with a valid-looking cookie?</strong> Usually IP or user-agent drift between issuance and use. Log both on both sides before blaming the solver.</p>
+<p><strong>How long does it actually last?</strong> Thirty minutes by default, but that is the configured value rather than a constant: zones can set shorter or longer. Treat the <code>Expires</code> on the cookie as the ceiling and expect the edge to challenge earlier if your traffic pattern changes.</p>
+<p><strong>Is a Turnstile token the same thing?</strong> No. The widget token is verified by your origin; <code>cf_clearance</code> is set by the edge. Paying for one does not give you the other, and sending the token as a cookie does nothing.</p>
 
 <footer>
-<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>. Japanese edition: <a href="/ja/glossary/cf-clearance/" hreflang="ja" lang="ja">cf_clearance クッキーとは</a>.</p>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-bm/">__cf_bm</a>, <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>. Japanese edition: <a href="/ja/glossary/cf-clearance/" hreflang="ja" lang="ja">cf_clearance クッキーとは</a>.</p>
 </footer>
 
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Does cf_clearance work on a different subdomain?","acceptedAnswer":{"@type":"Answer","text":"No. Cloudflare clearance is scoped to the hostname and zone that issued it."}},
 {"@type":"Question","name":"Can cf_clearance be generated without a browser?","acceptedAnswer":{"@type":"Answer","text":"Not by computing it. The cookie can only be obtained by completing the challenge, which requires a JavaScript engine or a solving service."}},
-{"@type":"Question","name":"Why do I get a 403 with a valid cf_clearance cookie?","acceptedAnswer":{"@type":"Answer","text":"Usually because the IP address or user agent changed between issuance and use. The cookie is bound to both."}}
+{"@type":"Question","name":"Why do I get a 403 with a valid cf_clearance cookie?","acceptedAnswer":{"@type":"Answer","text":"Usually because the IP address or user agent changed between issuance and use. The cookie is bound to both."}},
+{"@type":"Question","name":"How long does cf_clearance last?","acceptedAnswer":{"@type":"Answer","text":"Thirty minutes by default, but that is a configured value rather than a constant: zones can set shorter or longer. Treat the cookie's Expires as the ceiling and expect an earlier challenge if the traffic pattern changes."}},
+{"@type":"Question","name":"Is a Turnstile token the same as cf_clearance?","acceptedAnswer":{"@type":"Answer","text":"No. The Turnstile token is verified by your own origin, while cf_clearance is set by Cloudflare's edge. Sending the token as a cookie does nothing."}}
 ]}
 </script>
 </body>

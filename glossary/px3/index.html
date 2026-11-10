@@ -4,69 +4,148 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What is the _px3 cookie? PerimeterX / HUMAN, explained</title>
-<meta name="description" content="The _px3 cookie is PerimeterX's signed pass: an encrypted payload with a score and an expiry the server enforces separately from the cookie's own Expires. What each part does, why copying it fails.">
+<meta name="description" content="The _px3 cookie is PerimeterX's signed pass: an encrypted payload with a score, a lifetime the server enforces separately from the cookie's own Expires, and a signature that covers both. What each field decides, why copying it fails, and how to read a 403 that arrives with a valid cookie.">
 <link rel="canonical" href="https://seencxy.github.io/glossary/px3/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/px3/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/px3/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/px3/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What is the _px3 cookie? PerimeterX / HUMAN, explained">
+<meta property="og:description" content="What the _px3 fields carry, why it has two expiries, why it dies on a new IP, and what the s2s path replaces.">
+<meta property="og:url" content="https://seencxy.github.io/glossary/px3/">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
-h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.3}h3{margin-top:1.5rem;font-size:1.02rem}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f6f6f6;padding:.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0}
 table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
 th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
 nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
 a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
 footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
-@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}pre{background:#1c1c1c}th,td{border-color:#333}footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"What is the _px3 cookie? PerimeterX / HUMAN, explained","description":"The _px3 cookie: encrypted payload, two separate expiries, IP and user-agent binding, and the server-to-server path that replaces it.","inLanguage":"en","datePublished":"2026-11-08","dateModified":"2026-11-10","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://seencxy.github.io/glossary/px3/"},"about":[{"@type":"Thing","name":"_px3 cookie"},{"@type":"Thing","name":"PerimeterX HUMAN Security"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"Glossary","item":"https://seencxy.github.io/glossary/"},{"@type":"ListItem","position":3,"name":"_px3","item":"https://seencxy.github.io/glossary/px3/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/px3/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/px3/" hreflang="ja" lang="ja">日本語</a><a href="/id/glossary/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
 <h1>What is the <code>_px3</code> cookie?</h1>
-<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
-<p><strong>Short answer:</strong> <code>_px3</code> is the cookie PerimeterX (now HUMAN Security) issues to a browser that passed its sensor check. It carries a payload encrypted against a key the site holds, a short expiry inside the payload, and an HMAC signature. It is not a session token you can copy to a different client — the signature covers the payload, and the server re-signs on a schedule of its own.</p>
+<p class="meta">Last reviewed 10 November 2026 · 7 min read</p>
+
+<p><strong>Short answer:</strong> <code>_px3</code> is the cookie PerimeterX (now HUMAN Security) issues to a browser whose sensor check passed. It carries a payload encrypted against a key the site holds, a lifetime enforced inside that payload, and an HMAC signature over the payload. It is not a session token you can copy to another client: the signature covers what the payload says about your IP and user agent, and the edge re-signs on a schedule of its own.</p>
+
+<p>This page is organised around the three things that actually decide whether your requests pass: what the fields mean, which clock is running, and which identity the cookie is pinned to. If the cookie is in your jar and the page is still a challenge, the answer is almost always one of those three.</p>
 
 <h2>What is actually inside it</h2>
-<p>A <code>_px3</code> value is four colon-separated parts: the encrypted payload, a timestamp, a hash and a signature. Practically, what matters is:</p>
+<p>A <code>_px3</code> value is colon-separated: the encrypted payload, a timestamp, a hash and a signature. Practically, what matters is:</p>
 <table>
 <tr><th>Part</th><th>What it decides</th></tr>
 <tr><td>Encrypted payload</td><td>Contains the score PerimeterX calculated for the session, the IP and user agent it was issued to, and a UUID that ties it to <code>_pxvid</code>.</td></tr>
 <tr><td>Timestamp</td><td>When it was issued. Site policy decides how long it is considered fresh.</td></tr>
 <tr><td>Signature</td><td>HMAC over the payload with the site's own key. Altering the payload breaks it, so you cannot edit a low score into a high one.</td></tr>
 </table>
+<p>The field count has changed across deployments — older values carry three colon-separated fields, newer ones four, with the extra field holding version metadata. Parse by splitting on <code>:</code> and taking the signature from the <em>last</em> field, not from a fixed index, or your code will break quietly the day the format moves.</p>
 
 <h2>The two expiries</h2>
 <p>This is where most implementations break. There is the <code>Expires</code> the server sets on the cookie, and there is a lifetime baked into the payload that the server enforces on its own. They do not have to agree. A cookie can be sent back to you with an <code>Expires</code> two hours out while the payload was already close to expiring, because the server's own TTL is measured from issuance, not from the last time you used it.</p>
-<p>If you reuse a cookie until the browser would drop it, you will spend the last part of that window getting challenge responses on a cookie that still looks valid in your jar. Reading <code>Set-Cookie</code> headers on every response and replacing the jar entry unconditionally is the fix — not parsing the <code>Expires</code> attribute.</p>
+<table>
+<tr><th>Clock</th><th>Where it lives</th><th>Measured from</th><th>What it causes</th></tr>
+<tr><td>Cookie <code>Expires</code> / <code>Max-Age</code></td><td>The <code>Set-Cookie</code> header</td><td>The last write</td><td>When the browser drops the value. Usually later than the payload dies, which is why this attribute is a trap.</td></tr>
+<tr><td>Payload TTL</td><td>Inside the signed payload</td><td>Issuance</td><td>The edge starts challenging while your jar still looks healthy.</td></tr>
+<tr><td>Re-sign</td><td>Any response that carries <code>Set-Cookie</code></td><td>Whenever the edge decides</td><td>The value you hold is superseded. Sending a stale copy is itself a signal.</td></tr>
+</table>
+<p>If you reuse a cookie until the browser would drop it, you spend the last part of that window getting challenge responses on a cookie that still looks valid in your jar. Reading <code>Set-Cookie</code> on every response and replacing the jar entry unconditionally is the fix — not parsing the <code>Expires</code> attribute.</p>
 
 <h2>Why copying it between machines fails</h2>
 <ul>
 <li>The payload records the IP and user agent of the session. A jar lifted to another host usually gets a fresh challenge.</li>
 <li><code>_pxvid</code> and <code>_pxhd</code> travel with it. <code>_px3</code> without <code>_pxvid</code> is a signature over a session the edge cannot look up.</li>
 <li>The score in the payload can be <em>re-evaluated</em>, not just checked. A previously clean session that suddenly requests at machine speed gets a lower score at the next re-sign.</li>
+<li>Clearing the jar to "start clean" is worse than reusing a stale cookie: with no <code>_pxvid</code> the edge has no session history at all and runs the full sensor check again.</li>
 </ul>
 
+<h2>What it looks like in code</h2>
+<p>Two things are worth writing down: the shape that earns the cookie, and the way you decide it is still fresh. Neither involves decoding the payload.</p>
+<pre><code>from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    ctx = browser.new_context(proxy={"server": PROXY}, locale="en-US")
+    page = ctx.new_page()
+    page.goto(url, wait_until="networkidle")   # the sensor runs here
+
+    jar = {c["name"]: c["value"] for c in ctx.cookies()}
+    print(sorted(jar))                         # expect _px3, _pxvid, _pxhd
+
+    for attempt in range(3):
+        r = page.request.get(url)              # same context: cookies, UA and TLS
+        if r.status == 200:
+            break
+
+    # Never lift jar out of this context. The exit IP, user agent and TLS
+    # stack are part of the pass, not decoration around it.</code></pre>
+<pre><code>import time
+
+def px3_age(value: str) -> float:
+    parts = value.split(":")
+    # 3 fields on older deployments, 4 on newer; the timestamp sits at index 1 either way.
+    return time.time() - int(parts[1])
+
+age = px3_age(jar["_px3"])
+print("signed", round(age / 60, 1), "minutes ago")
+if age &gt; REFRESH_BUDGET:      # your own budget, not the cookie's Expires
+    refresh_session()          # new browser context, same exit IP</code></pre>
+
+<h2>Reading a 403 that arrives with a valid cookie</h2>
+<p>Most "the cookie is there but the page is blocked" reports collapse into five causes. Check them in this order, because the first two account for most of them:</p>
+<table>
+<tr><th>What you see</th><th>What it usually means</th><th>First thing to change</th></tr>
+<tr><td>200 once, then a challenge on the next request from the same jar</td><td>The payload TTL is measured from issuance, not from last use</td><td>Replace the jar entry on every <code>Set-Cookie</code>; stop waiting for <code>Expires</code></td></tr>
+<tr><td>Challenge immediately after a proxy rotation</td><td>The payload records the IP it was issued to</td><td>Pin one exit IP per session; rotate sessions, not requests</td></tr>
+<tr><td>Challenge after replaying a browser jar from <code>requests</code></td><td>The TLS fingerprint no longer agrees with the user agent in the payload</td><td>Keep the client stack that earned the cookie, or re-earn it in the new stack</td></tr>
+<tr><td><code>_px3</code> present, <code>_pxvid</code> missing</td><td>The edge cannot resolve the session the signature refers to</td><td>Restore the full jar rather than the one cookie you care about</td></tr>
+<tr><td>Fine for minutes, then challenges under load</td><td>The session is re-scored on machine-speed traffic at the next re-sign</td><td>Lower the rate, or take a fresh value per session</td></tr>
+</table>
+
 <h2>Between websites and the s2s path</h2>
-<p>PerimeterX has a server-to-server token flow used by some integrations. That path returns a token that is verified directly with HUMAN's API and does not require a browser-side cookie at all. If a site you are authorised to test supports it, it is far more stable than a cookie jar — see the <a href="https://www.tiam.codes/docs/perimeterx">PerimeterX endpoint</a> for how the SolveHub API exposes both modes.</p>
+<p>PerimeterX has a server-to-server token flow used by some integrations. That path returns a token verified directly with HUMAN's API and does not require a browser-side cookie at all. If a site you are authorised to test supports it, it is far more stable than a cookie jar — see the <a href="https://www.tiam.codes/docs/perimeterx">PerimeterX endpoint</a> for how the SolveHub API exposes both modes.</p>
 <p>Where s2s is not offered, the honest options are: run the sensor in a real browser and keep the whole jar plus network identity, or obtain a valid <code>_px3</code> for a given URL from a solving API. Regenerating the payload yourself means reimplementing an obfuscated, rotating script and the site's key — not a maintenance burden worth taking on.</p>
 
 <h2>Related cookies</h2>
 <ul>
+<li><code>_pxvid</code> — visitor ID. The <code>_px3</code> payload is bound to this value; on many sites it is a prerequisite rather than a companion.</li>
 <li><code>_pxhd</code> — HTTP-only, tied to <code>_pxvid</code>; required alongside <code>_px3</code> on many properties.</li>
 <li><code>pxcts</code> — short-lived challenge token, rotated constantly.</li>
 <li><code>_pxde</code> — deferred-cookie placeholder while the sensor is still running.</li>
 </ul>
+
 <h2>FAQ</h2>
 <p><strong>Can I decode the <code>_px3</code> payload?</strong> Not usefully. It is encrypted with a key the site controls, so you can see its length, not its contents. There is no client-side key.</p>
-<p><strong>Why does my <code>_px3</code> stop working before it expires?</strong> Because the server enforces its own lifetime from issuance, which can be shorter than the cookie's Expires attribute. Replace the jar entry on every Set-Cookie response.</p>
+<p><strong>Why does my <code>_px3</code> stop working before it expires?</strong> Because the server enforces its own lifetime from issuance, which can be shorter than the cookie's <code>Expires</code> attribute. Replace the jar entry on every <code>Set-Cookie</code> response.</p>
 <p><strong>Does <code>_px3</code> work from a different IP?</strong> Usually not for long. The payload records the IP and user agent of the issuing session, and a session evaluated under machine-speed traffic can be re-scored at the next re-sign.</p>
+<p><strong>Do I need <code>_pxvid</code> as well, or is <code>_px3</code> enough?</strong> On most properties you need both. <code>_px3</code> alone is a signature over a session the edge has no record of.</p>
+<p><strong>Can I raise the score by editing the cookie?</strong> No. The signature covers the payload, so any edit invalidates it. The score is computed from session behaviour, which is why the practical answer is a real browser or a fresh value from a solving API.</p>
+
 <footer>
 <p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/cf-clearance/">cf_clearance</a>. Japanese edition: <a href="/ja/glossary/px3/" hreflang="ja" lang="ja">_px3 クッキーとは</a>.</p>
 </footer>
 
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Can I decode the _px3 payload","acceptedAnswer":{"@type":"Answer","text":"Not usefully. It is encrypted with a key the site controls, so you can see its length, not its contents. There is no client-side key."}},{"@type":"Question","name":"Why does my _px3 stop working before it expires","acceptedAnswer":{"@type":"Answer","text":"Because the server enforces its own lifetime from issuance, which can be shorter than the cookie's Expires attribute. Replace the jar entry on every Set-Cookie response."}},{"@type":"Question","name":"Does _px3 work from a different IP","acceptedAnswer":{"@type":"Answer","text":"Usually not for long. The payload records the IP and user agent of the issuing session, and a session evaluated under machine-speed traffic can be re-scored at the next re-sign."}}]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Can I decode the _px3 payload","acceptedAnswer":{"@type":"Answer","text":"Not usefully. It is encrypted with a key the site controls, so you can see its length, not its contents. There is no client-side key."}},
+{"@type":"Question","name":"Why does my _px3 stop working before it expires","acceptedAnswer":{"@type":"Answer","text":"Because the server enforces its own lifetime from issuance, which can be shorter than the cookie's Expires attribute. Replace the jar entry on every Set-Cookie response."}},
+{"@type":"Question","name":"Does _px3 work from a different IP","acceptedAnswer":{"@type":"Answer","text":"Usually not for long. The payload records the IP and user agent of the issuing session, and a session evaluated under machine-speed traffic can be re-scored at the next re-sign."}},
+{"@type":"Question","name":"Do I need _pxvid as well as _px3","acceptedAnswer":{"@type":"Answer","text":"On most properties you need both. _px3 alone is a signature over a session the edge has no record of."}},
+{"@type":"Question","name":"Can I raise the _px3 score by editing the cookie","acceptedAnswer":{"@type":"Answer","text":"No. The signature covers the payload, so any edit invalidates it. The score is computed from session behaviour, so the practical route is a real browser or a fresh value from a solving API."}}
+]}
 </script>
 </body>
 </html>

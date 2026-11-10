@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anti-bot cookie glossary: cf_clearance, _abck, reese84, datadome</title>
+<meta name="description" content="Plain-language definitions of the cookies anti-bot vendors issue: what each one proves, how long it lives, and what breaks it. Cloudflare, Akamai, Imperva and DataDome.">
+<link rel="canonical" href="https://seencxy.github.io/glossary/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+.card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.2rem;margin:1rem 0}
+.card h3{margin:.1rem 0 .4rem}.card p{margin:0;color:#333}
+footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<h1>Anti-bot cookie glossary</h1>
+<p class="meta">Last reviewed 10 November 2026</p>
+<p>Each vendor leaves a different kind of cookie on the client. They are not interchangeable, and most failed scraping attempts come from treating one like another. These pages explain what each cookie actually proves.</p>
+
+<div class="card">
+<h3><a href="/glossary/cf-clearance/">cf_clearance</a> — Cloudflare</h3>
+<p>The clearance receipt issued after a JS challenge, Managed Challenge or Turnstile flow. Lives about 30 minutes and dies if the IP or user agent changes.</p>
+</div>
+
+<div class="card">
+<h3><a href="/glossary/akamai-abck/">_abck</a> — Akamai Bot Manager</h3>
+<p>A sensor ledger in three segments, rewritten on every response. The middle segment carries the verdict flag, which is why a fresh cookie can still be a blocking one.</p>
+</div>
+
+<div class="card">
+<h3><a href="/glossary/reese84/">reese84</a> — Imperva / Incapsula</h3>
+<p>The sensor verdict from Imperva's script. Short-lived (often 5–15 minutes), per-site, and bound to the session that solved it.</p>
+</div>
+
+<div class="card">
+<h3><a href="/glossary/datadome-cookie/">datadome</a> — DataDome</h3>
+<p>Clearance issued after DataDome's fingerprinting POST. Rotating proxies mid-session makes scoring worse, not better.</p>
+</div>
+
+<h2>Terms that are not cookies</h2>
+<p><strong>Turnstile token</strong> — a widget output your own server verifies; it is not clearance and does not open the site by itself.<br>
+<strong>Sensor data</strong> — the payload Akamai's script builds; the cookie is derived from it, so a cookie without fresh sensor data ages badly.<br>
+<strong>Interstitial</strong> — the full-page challenge some vendors show before the resource loads; distinct from an inline CAPTCHA widget.</p>
+
+<h2>Related reading</h2>
+<p><a href="/">Article index: writing on anti-bot engineering</a></p>
+
+<footer>
+<p>Maintained by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing.</p>
+</footer>
+</body>
+</html>

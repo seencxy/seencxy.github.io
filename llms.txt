@@ -1,0 +1,44 @@
+# Anti-bot engineering — notes by Lsr
+
+> Working notes on the cookies that decide whether a browser is trusted: Cloudflare cf_clearance, Akamai _abck, Imperva reese84, and DataDome. Written from hands-on debugging, not vendor marketing.
+
+## Glossary
+
+- [Anti-bot cookie glossary](https://seencxy.github.io/glossary/): index of the four cookies below, what each one holds and how it expires.
+- [What is the cf_clearance cookie?](https://seencxy.github.io/glossary/cf-clearance/): Cloudflare clearance — what the token is bound to (IP, user agent, TLS), why it dies when you rotate a proxy, and the difference from Turnstile.
+- [What is the _abck cookie?](https://seencxy.github.io/glossary/akamai-abck/): Akamai Bot Manager's ledger cookie — the three tilde-separated segments, the 0/1/~0 verdict flag, and why it is rewritten on every response.
+- [What is the reese84 cookie?](https://seencxy.github.io/glossary/reese84/): Imperva / Incapsula's sensor cookie — the single-use token, the 30-second-style window, and why copying it between requests fails.
+- [What is the datadome cookie?](https://seencxy.github.io/glossary/datadome-cookie/): DataDome's session cookie — why rotating proxies makes blocking worse, and what the interstitial actually measures.
+
+## Articles
+
+- [Cloudflare Turnstile in a Python scraper](https://dev.to/seencxy/cloudflare-turnstile-in-a-python-scraper-tokens-expiry-and-three-approaches-5592)
+- [DataDome in Playwright: why rotating your proxy makes blocking worse](https://dev.to/seencxy/datadome-in-playwright-why-rotating-your-proxy-makes-blocking-worse-2259)
+- [Eight checks before you buy a CAPTCHA solver](https://dev.to/seencxy/eight-checks-before-you-buy-a-captcha-solver-the-403-debugging-ladder-2d2j)
+
+## Optional
+
+- [SolveHub API documentation](https://www.tiam.codes/docs): reference for the solver endpoints (Turnstile, Akamai, DataDome, Imperius/reese84, PerimeterX, AWS WAF, image OCR). The author maintains this API.
+- [solvehub-python](https://github.com/seencxy/solvehub-python) and [solvehub-node](https://github.com/seencxy/solvehub-node): client SDKs.
+# Anti-bot engineering — notes by Lsr
+
+> Working notes on the cookies that decide whether a browser is trusted: Cloudflare cf_clearance, Akamai _abck, Imperva reese84, and DataDome. Written from hands-on debugging, not vendor marketing.
+
+## Glossary
+
+- [Anti-bot cookie glossary](https://seencxy.github.io/glossary/): index of the four cookies below, what each one holds and how it expires.
+- [What is the cf_clearance cookie?](https://seencxy.github.io/glossary/cf-clearance/): Cloudflare clearance — what the token is bound to (IP, user agent, TLS), why it dies when you rotate a proxy, and the difference from Turnstile.
+- [What is the _abck cookie?](https://seencxy.github.io/glossary/akamai-abck/): Akamai Bot Manager's ledger cookie — the three tilde-separated segments, the 0/1/~0 verdict flag, and why it is rewritten on every response.
+- [What is the reese84 cookie?](https://seencxy.github.io/glossary/reese84/): Imperva / Incapsula's sensor cookie — the single-use token, the short expiry window, and why copying it between requests fails.
+- [What is the datadome cookie?](https://seencxy.github.io/glossary/datadome-cookie/): DataDome's session cookie — why rotating proxies makes blocking worse, and what the interstitial actually measures.
+
+## Articles
+
+- [Cloudflare Turnstile in a Python scraper](https://dev.to/seencxy/cloudflare-turnstile-in-a-python-scraper-tokens-expiry-and-three-approaches-5592)
+- [DataDome in Playwright: why rotating your proxy makes blocking worse](https://dev.to/seencxy/datadome-in-playwright-why-rotating-your-proxy-makes-blocking-worse-2259)
+- [Eight checks before you buy a CAPTCHA solver](https://dev.to/seencxy/eight-checks-before-you-buy-a-captcha-solver-the-403-debugging-ladder-2d2j)
+
+## Optional
+
+- [SolveHub API documentation](https://www.tiam.codes/docs): reference for the solver endpoints (Turnstile, Akamai, DataDome, Imperva / reese84, PerimeterX, AWS WAF, image OCR). The author maintains this API.
+- [solvehub-python](https://github.com/seencxy/solvehub-python) and [solvehub-node](https://github.com/seencxy/solvehub-node): client SDKs.

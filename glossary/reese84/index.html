@@ -3,37 +3,57 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>What is the reese84 cookie? Imperva / Incapsula, explained</title>
-<meta name="description" content="reese84 is Imperva's (formerly Incapsula) bot-detection cookie. Why it is short-lived, why it is bound to the session that solved it, and how the UT.mvc script URL fits in.">
+<title>reese84 cookie explained: what it is, why it expires in minutes</title>
+<meta name="description" content="The reese84 cookie is Imperva's (Incapsula) bot-detection token. What the value looks like, how the sensor issues it, why it dies in minutes, how to spot an Imperva 403, and how to handle it in Python.">
 <link rel="canonical" href="https://seencxy.github.io/glossary/reese84/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/reese84/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/reese84/">
 <link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/reese84/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/reese84/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="reese84 cookie explained: what it is, why it expires in minutes">
+<meta property="og:description" content="Imperva's bot-detection token: the value format, the issuance handshake, the four bindings that kill it, and the 403 you get when it goes stale.">
+<meta property="og:url" content="https://seencxy.github.io/glossary/reese84/">
+<meta property="og:site_name" content="Anti-bot engineering notes">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
 h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f6f6f6;padding:.9rem;border-radius:5px;overflow-x:auto;font-size:.88rem;line-height:1.5}
 table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
 th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
 nav a{margin-right:1rem}
 </style>
 </head>
+
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/reese84/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/reese84/" hreflang="ja" lang="ja">日本語</a><a href="/id/glossary/reese84/" hreflang="id" lang="id">Bahasa Indonesia</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
 
 <h1>What is the <code>reese84</code> cookie?</h1>
-<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+<p class="meta">Last reviewed 10 November 2026 · 8 min read</p>
 
-<p><strong>Short answer:</strong> <code>reese84</code> is the cookie Imperva (the company formerly known as Incapsula) issues after its JavaScript sensor has run and passed. It is short-lived — commonly five to fifteen minutes — and tied to the session, user agent and IP that produced it. It took over from the older <code>incap_ses</code> / <code>visid_incap</code> pair as the bot-detection signal of record, though both of those still appear on Imperva-protected sites.</p>
+<p><strong>Short answer:</strong> <code>reese84</code> is the cookie Imperva (the company formerly known as Incapsula) issues after its JavaScript sensor has run on your browser and passed. It is short-lived — commonly five to fifteen minutes — and bound to the session, user agent and IP that produced it. It replaced the older <code>incap_ses</code> / <code>visid_incap</code> pair as the bot-detection signal of record, though both of those still appear on Imperva-protected sites.</p>
+
+<p>If you arrived here with a <code>403</code> and an Incapsula incident ID, skip to <a href="#403">the 403 section</a>. If you are deciding between running a browser and calling a solving API, read <a href="#handle">two ways to handle it</a>.</p>
+
+<h2>What the value actually looks like</h2>
+<p>A <code>reese84</code> value is an opaque string, typically a few hundred characters, URL-safe base64-ish — letters, digits, and occasionally <code>+</code> <code>/</code> <code>=</code>. It carries no readable timestamp and no readable user id. You cannot decode it into a fingerprint, and there is nothing to learn by base64-decoding it beyond noise; what it encodes is checked server-side against a keyed hash.</p>
+<p>Two practical consequences:</p>
+<ul>
+<li>You cannot tell from the string alone whether it is still alive. Only the next request tells you.</li>
+<li>You cannot forge one. The signing keys are per site and rotate, so a value that works on one property is worthless on another even within the same vendor.</li>
+</ul>
+<p>In Chrome DevTools it appears under Application → Cookies for the protected host with a <code>Path</code> of <code>/</code> and, usually but not always, <code>HttpOnly</code> set. If it is <code>HttpOnly</code>, document.cookie in the page cannot see it — read it from the response headers or from the browser context, not from injected JavaScript.</p>
 
 <h2>How it is issued</h2>
-<p>The page loads a script — often from a path containing <code>UT.mvc</code>, or a per-site script URL. That script gathers browser signals, encrypts them with per-site keys, and POSTs to an endpoint that answers with the cookie value. Three consequences follow directly:</p>
+<p>The page loads a sensor script — often served from a path containing <code>_Incapsula_Resource</code>, or from a per-site <code>UT.mvc</code> URL. That script gathers browser signals, encrypts them with per-site keys, and POSTs back to an endpoint that answers with <code>Set-Cookie</code>. Three consequences follow directly:</p>
 <ol>
 <li>You cannot compute the cookie without running that script, because the keys are per-site and rotate.</li>
-<li>You cannot request the cookie without the exact script URL, which is itself per-site and often only present in the challenge HTML.</li>
+<li>You cannot request the cookie without the exact script URL, which is itself per-site and is often only present in the challenge HTML you have not received yet.</li>
 <li>You cannot move the cookie to another machine once obtained, because the next request re-validates the pairing.</li>
 </ol>
+<p>That third point is where most projects break. The cookie is not a bearer token; it is a verdict attached to a specific client. Copying it into a different IP, a different <code>User-Agent</code>, or a different TLS stack invalidates it immediately.</p>
 
 <h2>Why it expires so fast</h2>
 <table>
@@ -43,33 +63,74 @@ nav a{margin-right:1rem}
 <tr><td>Cookie lifetime (minutes)</td><td>Works, then flips mid-run. Long jobs must refresh, not cache.</td></tr>
 <tr><td>Request rate</td><td>Cookie revoked early; the value that survived 50 requests fails at 200.</td></tr>
 </table>
+<p>The short lifetime is deliberate. A five-minute window forces any automated client to keep proving it can run the sensor, which is exactly the thing a bot farm cannot do at scale. For a scraper, this converts into an architectural requirement: a refresh loop, not a login.</p>
+
+<h2>How to tell a site is behind Imperva</h2>
+<p>Before optimising anything, confirm the vendor — the fix for Imperva is not the fix for Cloudflare or Akamai.</p>
+<ul>
+<li>Response headers: <code>X-CDN: Incapsula</code>, and very often <code>X-Iinfo</code> with a colon-separated tuple.</li>
+<li>HTML: references to <code>_Incapsula_Resource</code>, and a <code>UT.mvc</code> script URL.</li>
+<li>Cookies: any of <code>reese84</code>, <code>incap_ses_*</code>, <code>visid_incap_*</code>, <code>nlbi_*</code>.</li>
+<li>Block pages: the words "Incapsula incident ID" in the body.</li>
+</ul>
+<p>If you see <code>__cf_bm</code> / <code>cf_clearance</code> instead, that is Cloudflare — see <a href="/glossary/cf-clearance/">cf_clearance</a>. If you see <code>_abck</code> / <code>bm_sz</code>, that is Akamai — see <a href="/glossary/akamai-abck/">_abck</a>. If you see <code>datadome</code>, that is DataDome.</p>
+
+<h2 id="403">The 403 you will actually see</h2>
+<p>Imperva's block response is not a JSON error. It is a full HTML page, usually with HTTP <code>403</code>, containing an incident ID like <code>Request unsuccessful. Incapsula incident ID: 123-000000000-000000000000000</code>. The incident ID is Imperva's own correlation handle; it identifies the block event on their side and is not a code you can look up. What it tells you is which layer blocked:</p>
+<table>
+<tr><th>Where the 403 came from</th><th>What usually fixes it</th></tr>
+<tr><td>No <code>reese84</code> at all</td><td>Solve once to obtain one, then send it on every request with the same IP.</td></tr>
+<tr><td><code>reese84</code> present but stale</td><td>Refresh. Do not retry the same value; it fails deterministically.</td></tr>
+<tr><td>Cookie present and fresh, still blocked</td><td>Fingerprint mismatch — the cookie was minted for a different client. Re-solve from the client that will use it.</td></tr>
+<tr><td>Works, then blocks after N requests</td><td>Rate. Slow down or spread across exits, and expect earlier revocation.</td></tr>
+</table>
 
 <h2>The related cookies</h2>
 <ul>
 <li><code>incap_ses_*</code> — session identifier, one per session, suffixed per zone.</li>
 <li><code>visid_incap_*</code> — visitor identifier, longer-lived, used for returning-visitor scoring.</li>
 <li><code>nlbi_*</code> — load-balancer affinity, not a security cookie, but useful for session stability.</li>
+<li><code>__utmvc</code> — sensor bookkeeping, seen alongside the others on some properties.</li>
 </ul>
+<p>Keep all of them in one cookie jar keyed by exit IP. Mixing cookies from two solves across one jar is a common self-inflicted block.</p>
 
-<h2>Two ways to handle it</h2>
-<p><strong>Run the sensor yourself.</strong> A real browser on a fixed IP passes the challenge and holds the cookie for its short life. This is what a scraping browser pool does: honest and expensive.</p>
-<p><strong>Ask for the cookie.</strong> A solving API takes the site URL (and the script URL when the site hides it) and returns a fresh <code>reese84</code> together with the proxy exit that should be used with it. <a href="https://www.tiam.codes/">SolveHub</a> exposes this through one REST endpoint and bills per completed task; the detail that matters is that real requests must leave through the same exit that produced the cookie.</p>
+<h2 id="handle">Two ways to handle it</h2>
+<p><strong>Run the sensor yourself.</strong> A real browser on a fixed IP passes the challenge and holds the cookie for its short life. This is what a scraping browser pool does: honest and expensive. In Playwright the shape is:</p>
+<pre>ctx = browser.new_context(proxy=PROXY)          # same exit every time
+page = ctx.new_page()
+page.goto(url)                                   # sensor runs here
+jar = await ctx.cookies()                         # reese84 now present
+# reuse jar for direct HTTP calls through PROXY only,
+# and re-run this block when a 403 shows up</pre>
+<p>The two mistakes to avoid: rotating proxies inside one context (the cookie is bound to the exit that minted it), and caching the cookie across runs (it will already be dead).</p>
+<p><strong>Ask for the cookie.</strong> A solving API takes the site URL — and the script URL when the site hides it — and returns a fresh <code>reese84</code> together with the proxy exit that should be used with it. <a href="https://www.tiam.codes/">SolveHub</a> exposes this through one REST endpoint and bills per completed task; the detail that matters is that real requests must leave through the same exit that produced the cookie.</p>
 <p>There is a third path people miss: Imperva-protected sites usually leave sitemaps, RSS feeds, static assets and some JSON APIs completely unprotected. If the data you want is reachable there, no cookie is needed at all.</p>
 
 <h2>FAQ</h2>
 <p><strong>Is <code>reese84</code> the same as <code>incap_ses</code>?</strong> No. <code>incap_ses</code> is a session id; <code>reese84</code> carries the bot verdict from the sensor.</p>
 <p><strong>Can I reuse one cookie for many parallel requests?</strong> Briefly, if they share the same IP and fingerprint. Aggressive fan-out is itself a revocation trigger.</p>
 <p><strong>Why does the endpoint return challenge HTML instead of JSON?</strong> The cookie expired or the session drifted. Re-solve instead of retrying the same value.</p>
+<p><strong>Does <code>reese84</code> work from <code>requests</code> or <code>httpx</code> alone?</strong> Yes, once you have a live value — but only if the HTTP client's TLS fingerprint and headers match the client that minted it. Plain <code>requests</code> usually does not match, which is why the cookie appears to "not work" when it is in fact just mismatched.</p>
+<p><strong>How often should I refresh?</strong> Assume six to ten minutes as the safe ceiling, and treat any <code>403</code> as an immediate refresh signal rather than a retry signal.</p>
+<p><strong>Is <code>reese84</code> ever long-lived?</strong> Rarely. Some properties issue a longer window for already-trusted visitors, but you cannot reach that state from a cold start, so plan for the short case.</p>
 
 <footer>
-<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>.</p>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/px3/">_px3</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>, <a href="/glossary/aws-waf-token/">aws-waf-token</a>, <a href="/glossary/cf-bm/">__cf_bm</a>.</p>
 </footer>
 
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"What is the reese84 cookie? Imperva / Incapsula, explained","description":"Imperva's bot-detection token: value format, issuance handshake, expiry bindings and the 403 block page.","datePublished":"2026-11-10","dateModified":"2026-11-10","inLanguage":"en","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":"https://seencxy.github.io/glossary/reese84/"}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"Glossary","item":"https://seencxy.github.io/glossary/"},{"@type":"ListItem","position":3,"name":"reese84","item":"https://seencxy.github.io/glossary/reese84/"}]}
+</script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Is reese84 the same as incap_ses?","acceptedAnswer":{"@type":"Answer","text":"No. incap_ses is a session identifier, while reese84 carries the bot verdict produced by Imperva's JavaScript sensor."}},
 {"@type":"Question","name":"Can one reese84 cookie serve many parallel requests?","acceptedAnswer":{"@type":"Answer","text":"Only briefly, and only from the same IP address and fingerprint. Aggressive parallel use triggers early revocation."}},
-{"@type":"Question","name":"Why does an Imperva protected endpoint return challenge HTML instead of JSON?","acceptedAnswer":{"@type":"Answer","text":"The cookie has expired or the session changed. Solve again instead of retrying the same cookie value."}}
+{"@type":"Question","name":"Why does an Imperva protected endpoint return challenge HTML instead of JSON?","acceptedAnswer":{"@type":"Answer","text":"The cookie has expired or the session changed. Solve again instead of retrying the same cookie value."}},
+{"@type":"Question","name":"Does reese84 work from requests or httpx alone?","acceptedAnswer":{"@type":"Answer","text":"Only if the client's TLS fingerprint and headers match the client that minted the cookie. Where they do not match, the cookie appears not to work but is in fact mismatched."}},
+{"@type":"Question","name":"How often should a reese84 cookie be refreshed?","acceptedAnswer":{"@type":"Answer","text":"Treat six to ten minutes as the safe ceiling, and take any 403 as an immediate refresh signal rather than a retry signal."}}
 ]}
 </script>
 </body>

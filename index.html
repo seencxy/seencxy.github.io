@@ -4,6 +4,69 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anti-bot engineering — notes by Lsr</title>
+<meta name="description" content="Working notes on Akamai _abck, DataDome, PerimeterX _px3, Imperva reese84 and Cloudflare clearance: what the cookies and tokens actually do, and how to test against protected sites you own.">
+<link rel="canonical" href="https://dev.to/seencxy/akamai-abck-the-cookie-that-rewrites-itself-on-every-response-1gep">
+<style>
+:root{color-scheme:light dark}
+body{margin:0;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;background:#fff}
+main{max-width:44rem;margin:0 auto;padding:3rem 1.25rem 5rem}
+h1{font-size:1.9rem;line-height:1.25;margin:0 0 .5rem}
+h2{font-size:1.15rem;margin:2.5rem 0 .5rem}
+p,li{color:#333}
+a{color:#0b5fff;text-decoration:none}
+a:hover{text-decoration:underline}
+.tag{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:#888;margin:0 0 1.5rem}
+ul{padding-left:1.1rem}
+li{margin:.35rem 0}
+footer{margin-top:3.5rem;padding-top:1.25rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#777}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}p,li{color:#ccc}footer{border-color:#2a2a2a}}
+</style>
+</head>
+<body>
+<main>
+<p class="tag">Anti-bot engineering</p>
+<h1>Notes on bot defense and the cookies that decide whether you pass</h1>
+<p>I write about the parts of anti-bot systems that are documented nowhere: what <code>_abck</code> actually stores, why PerimeterX <code>_px3</code> has two clocks, why Akamai's <code>ApiURL</code> matters more than cookie freshness, and the handful of checks that separate a real session from a replayed one.</p>
+<p>Everything here is written for QA automation and integration testing on properties you own or are authorised to test.</p>
+
+<h2>Glossary</h2>
+<ul>
+<li><a href="/glossary/cf-clearance/">cf_clearance</a> — Cloudflare's clearance receipt</li>
+<li><a href="/glossary/akamai-abck/">_abck</a> — Akamai Bot Manager's sensor ledger</li>
+<li><a href="/glossary/reese84/">reese84</a> — Imperva / Incapsula sensor verdict</li>
+<li><a href="/glossary/datadome-cookie/">datadome</a> — DataDome clearance and why proxy rotation backfires</li>
+</ul>
+<p><a href="/glossary/">All definitions, in one page</a></p>
+
+<h2>Articles</h2>
+<ul>
+<li><a href="https://dev.to/seencxy/akamai-abck-the-cookie-that-rewrites-itself-on-every-response-1gep">Akamai <code>_abck</code>: the cookie that rewrites itself on every response</a> — also on <a href="https://antibotedev.blogspot.com/2026/11/akamai-abck-cookie-that-rewrites-itself.html">Blogger</a>, <a href="https://solvehub.hashnode.dev/akamai-abck-the-cookie-that-rewrites-itself-on-every-response">Hashnode</a> and <a href="https://telegra.ph/Akamai-abck-the-cookie-that-rewrites-itself-on-every-response-11-10">Telegraph</a>.</li>
+<li><a href="https://dev.to/seencxy/perimeterx-px3-the-two-expiries-that-kill-your-cookie-and-the-s2s-path-that-has-none-5ah5">PerimeterX <code>_px3</code>: the two expiries that kill your cookie (and the s2s path that has none)</a></li>
+<li><a href="https://dev.to/seencxy/impervas-reese84-cookie-what-it-is-why-it-dies-and-how-to-reuse-it-2fe8">Imperva's <code>reese84</code> cookie: what it is, why it dies, how to reuse it</a></li>
+<li><a href="https://dev.to/seencxy/datadome-in-playwright-why-rotating-your-proxy-makes-blocking-worse-2259">DataDome in Playwright: why rotating your proxy makes blocking worse</a></li>
+<li><a href="https://dev.to/seencxy/funcaptcha-arkose-labs-why-the-token-is-bound-to-your-session-and-the-three-ways-people-break-58eh">FunCaptcha / Arkose Labs: why the token is bound to your session</a></li>
+<li><a href="https://dev.to/seencxy/cloudflare-turnstile-in-a-python-scraper-tokens-expiry-and-three-approaches-5592">Cloudflare Turnstile in a Python scraper: tokens, expiry, three approaches</a></li>
+<li><a href="https://dev.to/seencxy/aws-waf-challenge-you-need-the-script-url-not-just-the-token-2hdd">AWS WAF challenge: you need the script URL, not just the token</a></li>
+<li><a href="https://dev.to/seencxy/eight-checks-before-you-buy-a-captcha-solver-the-403-debugging-ladder-2d2j">Eight checks before you buy a CAPTCHA solver</a></li>
+</ul>
+
+<h2>Reference</h2>
+<ul>
+<li><a href="https://www.tiam.codes/docs/akamai">Akamai endpoint</a> — request fields, <code>solution.headers</code>, <code>task.ApiURL</code></li>
+<li><a href="https://www.tiam.codes/docs/perimeterx">PerimeterX endpoint</a></li>
+<li><a href="https://github.com/seencxy/solvehub-python">Python SDK</a> · <a href="https://github.com/seencxy/solvehub-node">Node SDK</a> · <a href="https://github.com/seencxy/solvehub-mcp">MCP server</a></li>
+</ul>
+
+<footer>Lsr — I maintain <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorised testing.</footer>
+</main>
+</body>
+</html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anti-bot engineering — notes by Lsr</title>
 <meta name="description" content="Working notes on Akamai _abck, DataDome, PerimeterX _px3 and Cloudflare Turnstile: what the cookies and tokens actually do, and how to test against protected sites you own.">
 <link rel="canonical" href="https://dev.to/seencxy/akamai-abck-the-cookie-that-rewrites-itself-on-every-response-1gep">
 <style>

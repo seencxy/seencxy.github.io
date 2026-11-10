@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apa itu cookie reese84? Token sensor Imperva, dijelaskan</title>
+<meta name="description" content="Cookie reese84 adalah token sensor Imperva yang ditandatangani dan berumur pendek. Penjelasan alur penerbitannya, mengapa cepat kedaluwarsa, dan mengapa token tidak bisa dipindah sesi.">
+<link rel="canonical" href="https://seencxy.github.io/id/glossary/reese84/">
+<link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/reese84/">
+<link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/reese84/">
+<link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/reese84/">
+<link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/reese84/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.3;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.35;font-size:1.2rem}
+h3{margin-top:1.4rem;font-size:1.02rem}.meta{color:#666;font-size:.9rem}
+code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}th{background:#fafafa}
+footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}.card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.1rem;margin:1rem 0}
+.card h3{margin:0 0 .4rem;font-size:1.05rem}.card p{margin:0;color:#333}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/id/glossary/">Glosarium</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="/ja/glossary/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Mengapa cookie reese84 cepat kedaluwarsa?","acceptedAnswer":{"@type":"Answer","text":"Token reese84 membawa stempel waktu internal dan dinilai ulang di edge, sehingga umurnya biasanya hanya 5 sampai 15 menit."}},{"@type":"Question","name":"Bisakah cookie reese84 dipakai lintas domain?","acceptedAnswer":{"@type":"Answer","text":"Tidak. Token terikat pada satu situs dan pada sesi yang menyelesaikannya."}},{"@type":"Question","name":"Apa yang terjadi kalau alamat IP berubah?","acceptedAnswer":{"@type":"Answer","text":"Token sering langsung ditolak, terutama pada koneksi seluler yang berpindah jaringan."}}]}</script>
+<h1>Apa itu cookie <code>reese84</code>?</h1>
+<p class="meta">Terakhir diperiksa 10 November 2026 · bacaan 5 menit</p>
+
+<p><strong>Jawaban singkat:</strong> <code>reese84</code> adalah token yang diterbitkan oleh sensor Imperva (dahulu Incapsula). Token ini ditandatangani, berumur pendek — umumnya beberapa menit, sering 5 sampai 15 — dan terikat pada satu situs, satu sesi, serta biasanya satu kombinasi alamat IP dengan <code>User-Agent</code>. Cookie ini bukan pengganti <code>_abck</code> atau <code>cf_clearance</code>; ketiganya berasal dari sistem yang berbeda.</p>
+
+<h2>Bagaimana token ini terbit</h2>
+<p>Alurnya hampir selalu sama di setiap situs yang memakainya:</p>
+<ol>
+<li>Halaman mengirim satu skrip sensor khusus. Nama berkasnya berubah-ubah dan sering hanya muncul di dalam HTML yang sedang ditantang.</li>
+<li>Skrip mengumpulkan data lingkungan, lalu mengirimkannya ke endpoint milik situs itu sendiri.</li>
+<li>Endpoint membalas dengan token; token disimpan sebagai cookie <code>reese84</code> dan kadang juga di penyimpanan lokal.</li>
+</ol>
+<p>Konsekuensi praktisnya: URL skrip itu bagian dari kontrak. Mengambil token tanpa menjalankan skrip dari URL yang benar akan menghasilkan nilai yang ditolak pada permintaan berikutnya.</p>
+
+<h2>Mengapa cepat kedaluwarsa</h2>
+<p>Ada dua hal yang berjalan bersamaan: stempel waktu di dalam token, dan penilaian ulang di edge. Bahkan ketika token belum melewati batas waktunya, edge dapat meminta tantangan baru saat pola permintaan berubah — misalnya ketika laju permintaan naik atau urutan navigasi tidak wajar.</p>
+
+<h2>Pola yang biasanya bertahan</h2>
+<ul>
+<li>Ambil token per sesi, tepat setelah tantangan muncul, lalu pakai segera. Menyimpannya untuk dipakai besok hampir selalu gagal.</li>
+<li>Jaga agar alamat IP dan <code>User-Agent</code> tetap sama sepanjang umur token. Berganti proxy di tengah sesi membatalkan token lebih cepat daripada membiarkannya kedaluwarsa.</li>
+<li>Perlakukan 403 yang menyertakan skrip sensor sebagai instruksi: jalankan ulang alur sensor, jangan mengulang permintaan yang sama.</li>
+<li>Jangan mencampur token antar-subdomain; token satu hostname tidak berlaku di hostname lain meski satu organisasi.</li>
+</ul>
+
+<h2>Pertanyaan yang sering muncul</h2>
+<h3>Apakah <code>reese84</code> sama dengan cookie sesi Imperva lainnya?</h3>
+<p>Tidak. Imperva juga memakai cookie sesi biasa untuk pemuatan penyeimbang dan pelacakan; <code>reese84</code> khusus membawa putusan sensor.</p>
+<h3>Bisakah satu token dipakai beberapa proses sekaligus?</h3>
+<p>Secara teknis bisa dikirim, tetapi dua proses dengan sidik jari berbeda yang memakai token yang sama justru menjadi sinyal kuat. Satu token untuk satu sesi browser.</p>
+<h3>Kalau alamat IP berubah, apakah token langsung mati?</h3>
+<p>Sering demikian pada koneksi seluler yang berpindah jaringan. Pada koneksi kabel dengan IP stabil, token biasanya bertahan sampai batas waktunya.</p>
+
+<h2>Terkait</h2>
+<p><a href="/id/glossary/">Glosarium lengkap</a> · <a href="/glossary/reese84/" hreflang="en" lang="en">English edition</a> · <a href="/ja/glossary/reese84/" hreflang="ja" lang="ja">日本語版</a></p>
+<p>Catatan penulis: saya mengembangkan <a href="https://www.tiam.codes/">SolveHub</a>, API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan; alur <code>reese84</code> dijelaskan di <a href="https://www.tiam.codes/docs/imperva">dokumentasi Imperva</a>.</p>
+
+<footer>
+<p>Dikelola oleh <a href="https://github.com/seencxy">Lsr</a> (<a href="https://www.tiam.codes/">SolveHub</a> — API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan).</p>
+</footer>
+</body>
+</html>

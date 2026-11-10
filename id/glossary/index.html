@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glosarium cookie anti-bot: _abck, reese84, dan lainnya</title>
+<meta name="description" content="Penjelasan bahasa Indonesia untuk cookie anti-bot: _abck dari Akamai Bot Manager dan reese84 dari Imperva. Cookie-cookie ini tidak saling menggantikan, dan mencampurnya adalah penyebab utama scraping gagal.">
+<link rel="canonical" href="https://seencxy.github.io/id/glossary/">
+<link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/">
+<link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/">
+<link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/">
+<link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.3;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.35;font-size:1.2rem}
+h3{margin-top:1.4rem;font-size:1.02rem}.meta{color:#666;font-size:.9rem}
+code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}th{background:#fafafa}
+footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}.card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.1rem;margin:1rem 0}
+.card h3{margin:0 0 .4rem;font-size:1.05rem}.card p{margin:0;color:#333}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/id/glossary/">Glosarium</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="/ja/glossary/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<h1>Glosarium cookie anti-bot</h1>
+<p class="meta">Terakhir diperiksa 10 November 2026</p>
+<p>Setiap vendor meninggalkan jenis cookie yang berbeda di sisi klien. Cookie-cookie itu tidak saling menggantikan, dan sebagian besar kegagalan scraping berasal dari memperlakukan dua hal yang berbeda sebagai satu hal yang sama. Glosarium ini menjelaskan apa yang sebenarnya dibuktikan oleh masing-masing cookie.</p>
+
+<div class="card">
+<h3><a href="/id/glossary/akamai-abck/">_abck</a> — Akamai Bot Manager</h3>
+<p>Buku besar sensor dengan tiga segmen yang ditulis ulang pada setiap respons. Segmen kedua membawa flag putusan, sehingga cookie yang tampak baru pun bisa berarti blokir.</p>
+</div>
+
+<div class="card">
+<h3><a href="/id/glossary/reese84/">reese84</a> — Imperva / Incapsula</h3>
+<p>Token sensor yang ditandatangani oleh skrip Imperva. Umurnya pendek, umumnya 5 sampai 15 menit, dan terikat pada satu situs serta pada sesi yang menyelesaikannya.</p>
+</div>
+
+<h2>Cookie lain di edisi bahasa Inggris</h2>
+<p><code>cf_clearance</code> dan <code>cf_bm</code> (Cloudflare), DataDome, <code>_px3</code> (PerimeterX), serta <code>aws-waf-token</code> (AWS WAF) dibahas di edisi bahasa Inggris.<br>
+<a href="/glossary/" hreflang="en" lang="en">Anti-bot cookie glossary (English)</a></p>
+
+<h2>Versi bahasa lain</h2>
+<p><a href="/ja/glossary/" hreflang="ja" lang="ja">アンチボット Cookie 用語集（日本語）</a></p>
+
+<h2>Terkait</h2>
+<p><a href="/">Daftar artikel anti-bot engineering</a></p>
+
+<footer>
+<p>Dikelola oleh <a href="https://github.com/seencxy">Lsr</a> (<a href="https://www.tiam.codes/">SolveHub</a> — API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan).</p>
+</footer>
+</body>
+</html>

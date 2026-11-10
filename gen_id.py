@@ -1,0 +1,237 @@
+import pathlib
+
+BASE = 'https://seencxy.github.io'
+
+STYLE = """body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.3;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.35;font-size:1.2rem}
+h3{margin-top:1.4rem;font-size:1.02rem}.meta{color:#666;font-size:.9rem}
+code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}th{background:#fafafa}
+footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}.card{border:1px solid #e5e5e5;border-radius:8px;padding:1rem 1.1rem;margin:1rem 0}
+.card h3{margin:0 0 .4rem;font-size:1.05rem}.card p{margin:0;color:#333}"""
+
+NAV = '<nav><a href="/">Anti-bot engineering notes</a><a href="/id/glossary/">Glosarium</a><a href="/glossary/" hreflang="en" lang="en">English</a><a href="/ja/glossary/" hreflang="ja" lang="ja">\u65e5\u672c\u8a9e</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>'
+
+FOOT = '<footer>\n<p>Dikelola oleh <a href="https://github.com/seencxy">Lsr</a> (<a href="https://www.tiam.codes/">SolveHub</a> \u2014 API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan).</p>\n</footer>'
+
+def page(canonical, title, desc, alts, body):
+    out = ['<!doctype html>\n<html lang="id">\n<head>\n<meta charset="utf-8">\n']
+    out.append('<meta name="viewport" content="width=device-width, initial-scale=1">\n')
+    out.append('<title>' + title + '</title>\n')
+    out.append('<meta name="description" content="' + desc + '">\n')
+    out.append('<link rel="canonical" href="' + canonical + '">\n')
+    for k, v in alts:
+        out.append('<link rel="alternate" hreflang="' + k + '" href="' + v + '">\n')
+    out.append('<style>\n' + STYLE + '\n</style>\n</head>\n<body>\n')
+    out.append(NAV + '\n\n')
+    out.append(body)
+    out.append('\n\n' + FOOT + '\n</body>\n</html>\n')
+    return ''.join(out)
+
+def jstr(s):
+    return '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+def faq(pairs):
+    items = []
+    for q, a in pairs:
+        items.append('{"@type":"Question","name":' + jstr(q) + ',"acceptedAnswer":{"@type":"Answer","text":' + jstr(a) + '}}')
+    return '<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[' + ','.join(items) + ']}</script>\n'
+
+def write(p, s):
+    path = pathlib.Path(p)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(s, encoding='utf-8')
+    print('wrote', p, len(s))
+
+ALTS_HUB = [('en', BASE + '/glossary/'), ('ja', BASE + '/ja/glossary/'), ('id', BASE + '/id/glossary/'), ('x-default', BASE + '/glossary/')]
+ALTS_AB = [('en', BASE + '/glossary/akamai-abck/'), ('ja', BASE + '/ja/glossary/akamai-abck/'), ('id', BASE + '/id/glossary/akamai-abck/'), ('x-default', BASE + '/glossary/akamai-abck/')]
+ALTS_R = [('en', BASE + '/glossary/reese84/'), ('ja', BASE + '/ja/glossary/reese84/'), ('id', BASE + '/id/glossary/reese84/'), ('x-default', BASE + '/glossary/reese84/')]
+
+HUB = '''<h1>Glosarium cookie anti-bot</h1>
+<p class="meta">Terakhir diperiksa 10 November 2026</p>
+<p>Setiap vendor meninggalkan jenis cookie yang berbeda di sisi klien. Cookie-cookie itu tidak saling menggantikan, dan sebagian besar kegagalan scraping berasal dari memperlakukan dua hal yang berbeda sebagai satu hal yang sama. Glosarium ini menjelaskan apa yang sebenarnya dibuktikan oleh masing-masing cookie.</p>
+
+<div class="card">
+<h3><a href="/id/glossary/akamai-abck/">_abck</a> \u2014 Akamai Bot Manager</h3>
+<p>Buku besar sensor dengan tiga segmen yang ditulis ulang pada setiap respons. Segmen kedua membawa flag putusan, sehingga cookie yang tampak baru pun bisa berarti blokir.</p>
+</div>
+
+<div class="card">
+<h3><a href="/id/glossary/reese84/">reese84</a> \u2014 Imperva / Incapsula</h3>
+<p>Token sensor yang ditandatangani oleh skrip Imperva. Umurnya pendek, umumnya 5 sampai 15 menit, dan terikat pada satu situs serta pada sesi yang menyelesaikannya.</p>
+</div>
+
+<h2>Cookie lain di edisi bahasa Inggris</h2>
+<p><code>cf_clearance</code> dan <code>cf_bm</code> (Cloudflare), DataDome, <code>_px3</code> (PerimeterX), serta <code>aws-waf-token</code> (AWS WAF) dibahas di edisi bahasa Inggris.<br>
+<a href="/glossary/" hreflang="en" lang="en">Anti-bot cookie glossary (English)</a></p>
+
+<h2>Versi bahasa lain</h2>
+<p><a href="/ja/glossary/" hreflang="ja" lang="ja">\u30a2\u30f3\u30c1\u30dc\u30c3\u30c8 Cookie \u7528\u8a9e\u96c6\uff08\u65e5\u672c\u8a9e\uff09</a></p>
+
+<h2>Terkait</h2>
+<p><a href="/">Daftar artikel anti-bot engineering</a></p>'''
+
+AB = '''<h1>Apa itu cookie <code>_abck</code>?</h1>
+<p class="meta">Terakhir diperiksa 10 November 2026 \u00b7 bacaan 5 menit</p>
+
+<p><strong>Jawaban singkat:</strong> <code>_abck</code> adalah cookie utama Akamai Bot Manager. Cookie ini bukan tiket yang diperoleh sekali lalu berlaku selamanya \u2014 ini buku besar yang terus ditulis ulang oleh edge. Setiap respons dapat mengembalikan nilai baru, dan nilai itu menyandikan putusan atas data sensor yang dikirim browser Anda. Kalau satu nilai ditangkap lalu ditahan, nilai itu mulai kehilangan kesahihan sejak saat itu.</p>
+
+<h2>Tiga segmen dalam satu nilai</h2>
+<p>Nilai yang umum dijumpai berbentuk <code>F1A2B3...~-1~YAAQ...</code> \u2014 tiga bagian yang dipisahkan tanda tilde:</p>
+<table>
+<tr><th>Posisi</th><th>Isinya</th><th>Artinya dalam praktik</th></tr>
+<tr><td>Pertama</td><td>Hash panjang dari data sensor yang dikumpulkan skrip <code>bmak</code></td><td>Membuktikan bahwa skrip benar-benar berjalan dan apa yang dilaporkannya. Mengubah satu karakter membuat seluruh cookie tidak sah.</td></tr>
+<tr><td>Kedua</td><td>Flag putusan</td><td><code>0</code> = belum diputuskan, <code>1</code> = dianggap bot, <code>~0</code> atau <code>-1</code> = diterima. Nilai <code>1</code> inilah yang memblokir sekeras apa pun header dibuat menyerupai browser.</td></tr>
+<tr><td>Ketiga</td><td>Catatan penerbitan: stempel waktu terenkode dan data rujukan</td><td>Dipakai edge untuk menilai usia putusan. Nilai yang terlalu tua akan dinilai ulang.</td></tr>
+</table>
+
+<h2>Mengapa menyalin cookie ke mesin lain gagal</h2>
+<p>Segmen pertama adalah hash data sensor dari satu sesi tertentu: ukuran layar, pergerakan tetikus, jeda antar-peristiwa, dan sidik jari TLS yang dilihat edge. Menyalin nilai <code>_abck</code> ke proses lain membuat segmen pertama dan data sensor sesi baru tidak lagi cocok, sehingga putusan lama tidak bisa diwariskan.</p>
+<p>Segmen ketiga menambahkan dimensi waktu. Edge tahu kira-kira kapan nilai diterbitkan, dan nilai lama diperlakukan sebagai bahan pertimbangan ulang, bukan sebagai izin.</p>
+
+<h2>Pola yang biasanya bertahan</h2>
+<ul>
+<li>Perlakukan <code>_abck</code> sebagai keadaan sesi, bukan sebagai kredensial. Simpan per sesi dan jangan dibagi antar-sesi.</li>
+<li>Baca nilai baru pada setiap respons, termasuk respons 403. Justru pada respons itulah edge sering mengirim nilai pengganti.</li>
+<li>Skrip sensor harus diambil dan dijalankan dari origin yang sama dengan halaman target. Memindahkannya ke domain lain membuat hash pertama tidak pernah cocok.</li>
+<li>Kalau flag berubah menjadi <code>1</code>, berhenti dan periksa konsistensi header, urutan permintaan, serta sidik jari TLS. Mengulang permintaan lebih cepat hanya memperkuat putusan itu.</li>
+</ul>
+
+<h2>Pertanyaan yang sering muncul</h2>
+<h3>Apakah <code>_abck</code> sama dengan <code>bm_sz</code>?</h3>
+<p>Tidak. <code>bm_sz</code> menyimpan telemetri akumulatif yang lebih pendek dan dipakai lintas permintaan, sedangkan <code>_abck</code> membawa putusan sensor. Keduanya harus konsisten satu sama lain; memasangkan nilai dari dua sesi berbeda justru menjadi sinyal mencurigakan.</p>
+<h3>Berapa lama cookie ini berlaku?</h3>
+<p>Tidak ada masa berlaku tetap yang bisa diandalkan. Edge terus menilai ulang, sehingga nilai yang secara teknis masih hidup bisa sudah tidak dianggap sah.</p>
+<h3>Apakah cukup mengganti header <code>User-Agent</code>?</h3>
+<p>Tidak. <code>User-Agent</code> hanyalah satu dari banyak sinyal; sidik jari TLS dan urutan header HTTP/2 yang terlihat edge tidak berubah hanya karena string itu diganti.</p>
+
+<h2>Terkait</h2>
+<p><a href="/id/glossary/">Glosarium lengkap</a> \u00b7 <a href="/glossary/akamai-abck/" hreflang="en" lang="en">English edition</a> \u00b7 <a href="/ja/glossary/akamai-abck/" hreflang="ja" lang="ja">\u65e5\u672c\u8a9e\u7248</a></p>
+<p>Catatan penulis: saya mengembangkan <a href="https://www.tiam.codes/">SolveHub</a>, API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan; alur tantangan Akamai dibahas di <a href="https://www.tiam.codes/docs/akamai">dokumentasi Akamai</a>.</p>'''
+
+RE = '''<h1>Apa itu cookie <code>reese84</code>?</h1>
+<p class="meta">Terakhir diperiksa 10 November 2026 \u00b7 bacaan 5 menit</p>
+
+<p><strong>Jawaban singkat:</strong> <code>reese84</code> adalah token yang diterbitkan oleh sensor Imperva (dahulu Incapsula). Token ini ditandatangani, berumur pendek \u2014 umumnya beberapa menit, sering 5 sampai 15 \u2014 dan terikat pada satu situs, satu sesi, serta biasanya satu kombinasi alamat IP dengan <code>User-Agent</code>. Cookie ini bukan pengganti <code>_abck</code> atau <code>cf_clearance</code>; ketiganya berasal dari sistem yang berbeda.</p>
+
+<h2>Bagaimana token ini terbit</h2>
+<p>Alurnya hampir selalu sama di setiap situs yang memakainya:</p>
+<ol>
+<li>Halaman mengirim satu skrip sensor khusus. Nama berkasnya berubah-ubah dan sering hanya muncul di dalam HTML yang sedang ditantang.</li>
+<li>Skrip mengumpulkan data lingkungan, lalu mengirimkannya ke endpoint milik situs itu sendiri.</li>
+<li>Endpoint membalas dengan token; token disimpan sebagai cookie <code>reese84</code> dan kadang juga di penyimpanan lokal.</li>
+</ol>
+<p>Konsekuensi praktisnya: URL skrip itu bagian dari kontrak. Mengambil token tanpa menjalankan skrip dari URL yang benar akan menghasilkan nilai yang ditolak pada permintaan berikutnya.</p>
+
+<h2>Mengapa cepat kedaluwarsa</h2>
+<p>Ada dua hal yang berjalan bersamaan: stempel waktu di dalam token, dan penilaian ulang di edge. Bahkan ketika token belum melewati batas waktunya, edge dapat meminta tantangan baru saat pola permintaan berubah \u2014 misalnya ketika laju permintaan naik atau urutan navigasi tidak wajar.</p>
+
+<h2>Pola yang biasanya bertahan</h2>
+<ul>
+<li>Ambil token per sesi, tepat setelah tantangan muncul, lalu pakai segera. Menyimpannya untuk dipakai besok hampir selalu gagal.</li>
+<li>Jaga agar alamat IP dan <code>User-Agent</code> tetap sama sepanjang umur token. Berganti proxy di tengah sesi membatalkan token lebih cepat daripada membiarkannya kedaluwarsa.</li>
+<li>Perlakukan 403 yang menyertakan skrip sensor sebagai instruksi: jalankan ulang alur sensor, jangan mengulang permintaan yang sama.</li>
+<li>Jangan mencampur token antar-subdomain; token satu hostname tidak berlaku di hostname lain meski satu organisasi.</li>
+</ul>
+
+<h2>Pertanyaan yang sering muncul</h2>
+<h3>Apakah <code>reese84</code> sama dengan cookie sesi Imperva lainnya?</h3>
+<p>Tidak. Imperva juga memakai cookie sesi biasa untuk pemuatan penyeimbang dan pelacakan; <code>reese84</code> khusus membawa putusan sensor.</p>
+<h3>Bisakah satu token dipakai beberapa proses sekaligus?</h3>
+<p>Secara teknis bisa dikirim, tetapi dua proses dengan sidik jari berbeda yang memakai token yang sama justru menjadi sinyal kuat. Satu token untuk satu sesi browser.</p>
+<h3>Kalau alamat IP berubah, apakah token langsung mati?</h3>
+<p>Sering demikian pada koneksi seluler yang berpindah jaringan. Pada koneksi kabel dengan IP stabil, token biasanya bertahan sampai batas waktunya.</p>
+
+<h2>Terkait</h2>
+<p><a href="/id/glossary/">Glosarium lengkap</a> \u00b7 <a href="/glossary/reese84/" hreflang="en" lang="en">English edition</a> \u00b7 <a href="/ja/glossary/reese84/" hreflang="ja" lang="ja">\u65e5\u672c\u8a9e\u7248</a></p>
+<p>Catatan penulis: saya mengembangkan <a href="https://www.tiam.codes/">SolveHub</a>, API penyelesaian CAPTCHA dan anti-bot untuk pengujian yang diizinkan; alur <code>reese84</code> dijelaskan di <a href="https://www.tiam.codes/docs/imperva">dokumentasi Imperva</a>.</p>'''
+
+write('id/glossary/index.html', page(BASE + '/id/glossary/', 'Glosarium cookie anti-bot: _abck, reese84, dan lainnya', 'Penjelasan bahasa Indonesia untuk cookie anti-bot: _abck dari Akamai Bot Manager dan reese84 dari Imperva. Cookie-cookie ini tidak saling menggantikan, dan mencampurnya adalah penyebab utama scraping gagal.', ALTS_HUB, HUB))
+
+ab_faq = [
+    ('Apakah cookie _abck sama dengan bm_sz?', 'Tidak. bm_sz menyimpan telemetri akumulatif yang lebih pendek dan dipakai lintas permintaan, sedangkan _abck membawa putusan sensor.'),
+    ('Berapa lama cookie _abck berlaku?', 'Tidak ada masa berlaku tetap. Edge terus menilai ulang, sehingga nilai yang secara teknis masih hidup bisa sudah tidak dianggap sah.'),
+    ('Apakah cukup mengganti User-Agent?', 'Tidak. User-Agent hanya satu sinyal; sidik jari TLS dan urutan header HTTP/2 tidak berubah hanya karena string itu diganti.'),
+]
+write('id/glossary/akamai-abck/index.html', page(BASE + '/id/glossary/akamai-abck/', 'Apa itu cookie _abck? Akamai Bot Manager, dijelaskan', 'Cookie _abck adalah buku besar sensor Akamai Bot Manager: mengapa nilainya terdiri dari tiga segmen, mengapa ditulis ulang pada setiap respons, dan mengapa menyalin nilai lama selalu gagal.', ALTS_AB, faq(ab_faq) + AB))
+
+re_faq = [
+    ('Mengapa cookie reese84 cepat kedaluwarsa?', 'Token reese84 membawa stempel waktu internal dan dinilai ulang di edge, sehingga umurnya biasanya hanya 5 sampai 15 menit.'),
+    ('Bisakah cookie reese84 dipakai lintas domain?', 'Tidak. Token terikat pada satu situs dan pada sesi yang menyelesaikannya.'),
+    ('Apa yang terjadi kalau alamat IP berubah?', 'Token sering langsung ditolak, terutama pada koneksi seluler yang berpindah jaringan.'),
+]
+write('id/glossary/reese84/index.html', page(BASE + '/id/glossary/reese84/', 'Apa itu cookie reese84? Token sensor Imperva, dijelaskan', 'Cookie reese84 adalah token sensor Imperva yang ditandatangani dan berumur pendek. Penjelasan alur penerbitannya, mengapa cepat kedaluwarsa, dan mengapa token tidak bisa dipindah sesi.', ALTS_R, faq(re_faq) + RE))
+
+HL = [
+    ('glossary/index.html', BASE + '/id/glossary/'),
+    ('ja/glossary/index.html', BASE + '/id/glossary/'),
+    ('glossary/akamai-abck/index.html', BASE + '/id/glossary/akamai-abck/'),
+    ('glossary/reese84/index.html', BASE + '/id/glossary/reese84/'),
+    ('ja/glossary/akamai-abck/index.html', BASE + '/id/glossary/akamai-abck/'),
+    ('ja/glossary/reese84/index.html', BASE + '/id/glossary/reese84/'),
+]
+for rel, url in HL:
+    p = pathlib.Path(rel)
+    if not p.exists():
+        print('missing', rel)
+        continue
+    t = p.read_text(encoding='utf-8')
+    if 'hreflang="id"' in t:
+        print('hreflang skip', rel)
+        continue
+    marker = '<link rel="alternate" hreflang="x-default"'
+    i = t.find(marker)
+    if i < 0:
+        print('no x-default', rel)
+        continue
+    line = '<link rel="alternate" hreflang="id" href="' + url + '">\n'
+    p.write_text(t[:i] + line + t[i:], encoding='utf-8')
+    print('hreflang added', rel)
+
+idx = pathlib.Path('index.html')
+t = idx.read_text(encoding='utf-8')
+if '/id/glossary/' not in t:
+    block = '''<h2>Bahasa Indonesia</h2>
+<ul>
+<li><a href="/id/glossary/akamai-abck/" hreflang="id" lang="id">Apa itu cookie _abck</a> \u2014 buku besar Akamai Bot Manager yang ditulis ulang pada setiap respons</li>
+<li><a href="/id/glossary/reese84/" hreflang="id" lang="id">Apa itu cookie reese84</a> \u2014 token sensor Imperva yang kedaluwarsa dalam hitungan menit</li>
+</ul>
+<p><a href="/id/glossary/" hreflang="id" lang="id">Glosarium lengkap (Bahasa Indonesia)</a></p>
+
+'''
+    j = t.find('<footer')
+    if j < 0:
+        j = t.find('</body>')
+    idx.write_text(t[:j] + block + t[j:], encoding='utf-8')
+    print('homepage section added')
+else:
+    print('homepage skip')
+
+g = pathlib.Path('glossary/index.html')
+t2 = g.read_text(encoding='utf-8')
+if 'Glosarium cookie anti-bot' not in t2:
+    j = t2.find('hreflang="ja" lang="ja">')
+    k = t2.find('</a>.</p>', j) if j > 0 else -1
+    if k > 0:
+        end = k + len('</a>.</p>')
+        add = '\n<p>An Indonesian edition explains the same two cookies: <a href="/id/glossary/" hreflang="id" lang="id">Glosarium cookie anti-bot</a>.</p>'
+        g.write_text(t2[:end] + add + t2[end:], encoding='utf-8')
+        print('glossary index link added')
+    else:
+        print('glossary index anchor not found')
+else:
+    print('glossary index skip')
+
+sm = pathlib.Path('sitemap.xml')
+t3 = sm.read_text(encoding='utf-8')
+if '/id/glossary/' not in t3:
+    add = ''
+    for u in ['/id/glossary/', '/id/glossary/akamai-abck/', '/id/glossary/reese84/']:
+        add += '  <url><loc>' + BASE + u + '</loc><lastmod>2026-11-10</lastmod></url>\n'
+    k = t3.find('</urlset>')
+    sm.write_text(t3[:k] + add + t3[k:], encoding='utf-8')
+    print('sitemap updated')
+else:
+    print('sitemap skip')

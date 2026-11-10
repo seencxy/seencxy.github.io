@@ -3,76 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>_px3 クッキーとは ― PerimeterX / HUMAN が発行する署名付きパス</title>
-<meta name="description" content="_px3 は PerimeterX（現 HUMAN Security）がセンサー判定の後に発行するクッキーです。暗号化されたペイロード、発行時刻、HMAC 署名でできており、コピーして別のマシンで使うと通らない理由を解説します。">
+<title>_px3 クッキーとは ― PerimeterX の署名付きペイロードと 2 つの失効時間</title>
+<meta name="description" content="_px3 は PerimeterX（現 HUMAN Security）がセンサー検査を通ったブラウザに発行するクッキーです。4 つの区切りの意味、Expires と内部 TTL という 2 つの失効時間、別マシンへ移すと通らない理由、s2s という別経路をまとめます。">
 <link rel="canonical" href="https://seencxy.github.io/ja/glossary/px3/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/px3/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/px3/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/px3/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="_px3 クッキーとは ― PerimeterX の署名付きペイロードと 2 つの失効時間">
+<meta property="og:description" content="PerimeterX の _px3 クッキーの中身、失効時間が 2 つある理由、別マシンで通らない理由、s2s 経路。">
+<meta property="og:url" content="https://seencxy.github.io/ja/glossary/px3/">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",Roboto,sans-serif;color:#111}
 h1{line-height:1.35;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.4}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f6f6f6;padding:.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:.86rem;line-height:1.6}
 table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
 th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
 nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
 a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
 footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
-@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}pre{background:#1c1c1c}th,td{border-color:#333}footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"_px3 クッキーとは ― PerimeterX の署名付きペイロードと 2 つの失効時間","description":"PerimeterX（現 HUMAN Security）の _px3 クッキーの中身、Expires と内部 TTL の二重の失効、別マシンで通らない理由、s2s 経路。","inLanguage":"ja","datePublished":"2026-11-10","dateModified":"2026-11-10","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://seencxy.github.io/ja/glossary/px3/"},"about":[{"@type":"Thing","name":"_px3 cookie"},{"@type":"Thing","name":"PerimeterX HUMAN Security"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"用語集","item":"https://seencxy.github.io/ja/glossary/"},{"@type":"ListItem","position":3,"name":"_px3","item":"https://seencxy.github.io/ja/glossary/px3/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">用語集 (JA)</a><a href="/glossary/px3/" hreflang="en" lang="en">English</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">日本語の用語集</a><a href="/glossary/" hreflang="en" lang="en">Glossary (EN)</a><a href="/id/glossary/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
 <h1><code>_px3</code> クッキーとは</h1>
-<p class="meta">最終確認 2026年11月10日 · 約5分</p>
+<p class="meta">最終確認 2026年11月10日 · 約7分</p>
 
-<p><strong>結論から:</strong> <code>_px3</code> は PerimeterX（現 HUMAN Security）のセンサー判定を通ったブラウザに発行されるクッキーです。サイトが持つ鍵で暗号化されたペイロード、ペイロード内に埋め込まれた短い寿命、そして HMAC 署名の 3 つでできています。セッショントークンのように別のクライアントへコピーして使えるものではありません。署名はペイロード全体を覆っており、サーバーは独自の周期で再署名します。</p>
+<p><strong>結論から:</strong> <code>_px3</code> は PerimeterX（現 HUMAN Security）が、センサー検査を通ったブラウザに発行するクッキーです。サイトが持つ鍵で暗号化されたペイロード、ペイロード内部の短い失効時刻、そして HMAC 署名を持ちます。別クライアントへコピーできるセッショントークンではありません。署名はペイロード全体を覆っており、サーバーは独自のスケジュールで再署名します。</p>
 
 <h2>中身は 4 つの区切りでできている</h2>
-<p><code>_px3</code> の値はコロンで区切られた 4 つの部分からなります。暗号化ペイロード、時刻、ハッシュ、署名です。実務で重要なのは次の点です。</p>
+<p><code>_px3</code> の値はコロン区切りの 4 部分です。暗号化ペイロード、タイムスタンプ、ハッシュ、署名。実務で効くのはこの 3 点です。</p>
 <table>
-<tr><th>部分</th><th>何を決めているか</th></tr>
-<tr><td>暗号化ペイロード</td><td>PerimeterX がそのセッションに対して算出したスコア、発行時の IP と User-Agent、そして <code>_pxvid</code> と結びつく UUID が入っています。</td></tr>
-<tr><td>時刻</td><td>発行時刻。どれだけの期間を「新しい」とみなすかはサイトのポリシーが決めます。</td></tr>
-<tr><td>署名</td><td>サイト固有の鍵による HMAC。ペイロードを 1 バイトでも変えると壊れるので、低いスコアを高いスコアに書き換えることはできません。</td></tr>
+<tr><th>部分</th><th>何を決めるか</th></tr>
+<tr><td>暗号化ペイロード</td><td>PerimeterX がそのセッションについて計算したスコア、発行先の IP と User-Agent、<code>_pxvid</code> に結びつく UUID を含みます。</td></tr>
+<tr><td>タイムスタンプ</td><td>発行時刻。どれだけ新鮮と見なすかはサイトのポリシーが決めます。</td></tr>
+<tr><td>署名</td><td>サイト固有の鍵によるペイロード全体の HMAC。書き換えると壊れるので、低いスコアを高いスコアに編集することはできません。</td></tr>
 </table>
 
-<h2>2 つの失効時間がある</h2>
-<p>ここで多くの実装が壊れます。サーバーがクッキーに付ける <code>Expires</code> と、ペイロードに埋め込まれサーバーが独自に適用する寿命は別物で、両者が一致する必要はありません。<code>Expires</code> が 2 時間先でも、ペイロードの寿命は発行時点から測られているため、返ってきた瞬間にすでに期限が近いことがあります。</p>
-<p>ブラウザが捨てるまでクッキーを使い回すと、ジャーの中ではまだ有効に見えるクッキーで、最後のほうはチャレンジ応答ばかり返ってきます。対策は <code>Expires</code> 属性を読むことではなく、応答ごとに <code>Set-Cookie</code> ヘッダーを見てジャーの該当エントリを無条件に差し替えることです。</p>
+<h2>失効時間が 2 つある</h2>
+<p>ここで大半の実装が壊れます。サーバーがクッキーに付ける <code>Expires</code> と、ペイロードに焼き込まれ、サーバーが独自に適用する寿命は別物です。両者は一致する必要がありません。<code>Expires</code> が 2 時間先でも、ペイロード側は発行時刻から測った TTL の終わりに近いことがあります。サーバー側の TTL は発行時点から測るのであって、最後に使った時刻からではありません。</p>
+<p>ブラウザが捨てるまでクッキーを使い回すと、その窓の後半は「ジャーには有効に見えるのに、応答はチャレンジになる」時間になります。直し方は <code>Expires</code> 属性を読むことではなく、毎回のレスポンスの <code>Set-Cookie</code> を見て、ジャーの項目を無条件に差し替えることです。</p>
 
-<h2>別のマシンへ移すと通らない理由</h2>
+<h2>別マシンへ移すと通らない理由</h2>
 <ul>
-<li>ペイロードには発行時の IP と User-Agent が記録されています。別ホストへ移したジャーは、たいてい新しいチャレンジを受けます。</li>
-<li><code>_pxvid</code> と <code>_pxhd</code> が一緒に移動します。<code>_pxvid</code> を欠いた <code>_px3</code> は、エッジが照合できないセッションに対する署名でしかありません。</li>
-<li>ペイロードのスコアは「確認される」だけでなく「再評価される」ことがあります。以前はクリーンだったセッションでも、機械的な速度でリクエストを送り始めると、次の再署名でスコアが下がります。</li>
+<li>ペイロードにはセッションの IP と User-Agent が記録されます。別ホストへ持ち上げたジャーは、たいてい新しいチャレンジを受けます。</li>
+<li><code>_pxvid</code> と <code>_pxhd</code> が一緒に移動します。<code>_pxvid</code> を欠いた <code>_px3</code> は、エッジが参照できないセッションに対する署名でしかありません。</li>
+<li>ペイロードのスコアは「検査」だけでなく「再評価」されます。健全だったセッションが機械の速度で要求を始めると、次の再署名でスコアが下がります。</li>
 </ul>
 
+<h2>コードでの形</h2>
+<p>実ブラウザで通す場合の最小形です。要点は、クッキー単体ではなくコンテキストごと保持すること、そして期限を待たずに毎回の <code>Set-Cookie</code> を反映することです。</p>
+<pre>ctx = browser.new_context(proxy=PROXY)      # 出口は固定
+page = ctx.new_page()
+page.goto(url)                               # ここでセンサーが走る
+jar = await ctx.cookies()                    # _px3 と _pxvid が揃う
+# 403 や captcha ページが出たら、同じコンテキストでナビゲートし直す。
+# Expires を見て待つのではなく、Set-Cookie のたびにジャーを差し替える。</pre>
+
 <h2>s2s という別の経路</h2>
-<p>PerimeterX には、一部の連携で使われるサーバー間（s2s）のトークン方式があります。この経路では HUMAN の API で直接検証するトークンが返り、ブラウザ側のクッキーを必要としません。検証許可を得ているサイトがこの方式に対応しているなら、クッキージャーを維持するよりはるかに安定します。<a href="https://www.tiam.codes/ja/docs/perimeterx">PerimeterX のドキュメント</a> に、両方のモードを API からどう扱うかをまとめています。</p>
-<p>s2s が提供されていない場合の現実的な選択肢は 2 つです。実ブラウザでセンサーを動かし、ジャーとネットワーク上の同一性を丸ごと保つか、対象 URL に対する有効な <code>_px3</code> を解決 API から受け取るかです。ペイロードを自分で再生成するのは、難読化された頻繁に変わるスクリプトとサイトの鍵を再実装することになり、維持コストに見合いません。</p>
+<p>PerimeterX には、一部の連携で使われるサーバー間トークンの流れがあります。その経路は HUMAN の API で直接検証されるトークンを返し、ブラウザ側のクッキーをまったく必要としません。テストを許可されているサイトが対応しているなら、クッキージャーよりはるかに安定します。両モードを SolveHub の API がどう出しているかは <a href="https://www.tiam.codes/ja/docs/perimeterx">PerimeterX のエンドポイント</a> にまとめています。</p>
+<p>s2s が提供されていない場合の誠実な選択肢は 2 つです。実ブラウザでセンサーを動かし、ジャー全体とネットワーク同一性を保持する。あるいは、対象 URL 用の有効な <code>_px3</code> を解決 API から取得する。ペイロードを自分で再生成するのは、難読化された回転スクリプトとサイトの鍵を再実装するということで、引き受ける価値のある保守負担ではありません。</p>
 
 <h2>関連するクッキー</h2>
 <ul>
-<li><code>_pxhd</code> ― HTTP-only で <code>_pxvid</code> に紐づきます。多くのサイトで <code>_px3</code> とセットで必要です。</li>
-<li><code>pxcts</code> ― 短命のチャレンジトークン。常に更新されます。</li>
-<li><code>_pxde</code> ― センサー実行中に置かれる遅延クッキーのプレースホルダーです。</li>
+<li><code>_pxvid</code> ― 訪問者 ID。<code>_px3</code> のペイロードがこの値に結びつきます。</li>
+<li><code>_pxhd</code> ― <code>HttpOnly</code> で <code>_pxvid</code> に紐づく。多くのプロパティで <code>_px3</code> と並んで必須です。</li>
+<li><code>pxcts</code> ― 短命のチャレンジトークン。常に回転します。</li>
+<li><code>_pxde</code> ― センサー実行中に置かれる遅延クッキーのプレースホルダ。</li>
 </ul>
 
 <h2>よくある質問</h2>
-<p><strong>_px3 のペイロードは復号できますか。</strong> 実用にはなりません。サイトが管理する鍵で暗号化されているため、長さは分かっても中身は分かりません。クライアント側に鍵はありません。</p>
-<p><strong>失効前に _px3 が効かなくなるのはなぜですか。</strong> サーバーが発行時点から独自の寿命を適用しており、それがクッキーの <code>Expires</code> より短いことがあるためです。<code>Set-Cookie</code> が返るたびにジャーのエントリを差し替えてください。</p>
-<p><strong>別の IP からでも _px3 は通りますか。</strong> 長くは通りません。ペイロードには発行セッションの IP と User-Agent が記録されており、機械的な速度で評価されたセッションは次の再署名でスコアを下げられます。</p>
+<p><strong><code>_px3</code> のペイロードは復号できますか。</strong> 実用にはなりません。サイトが管理する鍵で暗号化されているので、分かるのは長さだけです。クライアント側に鍵はありません。</p>
+<p><strong>失効前に動かなくなるのはなぜですか。</strong> サーバーが発行時点から独自の寿命を適用しており、それがクッキーの <code>Expires</code> より短いことがあるためです。<code>Set-Cookie</code> のたびにジャーの項目を差し替えてください。</p>
+<p><strong>別の IP からでも <code>_px3</code> は通りますか。</strong> 長くは通りません。ペイロードには発行セッションの IP と User-Agent が記録されており、機械の速度で要求するセッションは次の再署名で再評価されます。</p>
+<p><strong><code>_px3</code> と <code>_pxvid</code> はどちらも必要ですか。</strong> 多くのサイトでは両方です。<code>_px3</code> 単体では、エッジが参照できないセッションへの署名になります。</p>
+<p><strong>スコアを上げる方法はありますか。</strong> ペイロードの編集はできません。署名が壊れます。スコアはセッションの振る舞いから計算されるので、実ブラウザで通すか、解決 API から新しい値を得るのが現実的です。</p>
 
 <footer>
-<p>執筆: Lsr。関連: <a href="/ja/glossary/akamai-abck/">_abck</a>、<a href="/ja/glossary/reese84/">reese84</a>、<a href="/ja/glossary/cf-clearance/">cf_clearance</a>。PerimeterX のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/perimeterx">PerimeterX のドキュメント</a> にまとめています。</p>
+<p>執筆: Lsr。関連: <a href="/ja/glossary/">日本語の用語集</a>、<a href="/ja/glossary/akamai-abck/">_abck</a>、<a href="/ja/glossary/cf-clearance/">cf_clearance</a>、<a href="/ja/glossary/reese84/">reese84</a>。PerimeterX のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/perimeterx">PerimeterX のドキュメント</a> にまとめています。</p>
 </footer>
 
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"_px3 のペイロードは復号できますか","acceptedAnswer":{"@type":"Answer","text":"実用にはなりません。サイトが管理する鍵で暗号化されているため、長さは分かっても中身は分かりません。クライアント側に鍵はありません。"}},
-{"@type":"Question","name":"失効前に _px3 が効かなくなるのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"サーバーが発行時点から独自の寿命を適用しており、それがクッキーの Expires より短いことがあるためです。Set-Cookie が返るたびにジャーのエントリを差し替えてください。"}},
-{"@type":"Question","name":"別の IP からでも _px3 は通りますか","acceptedAnswer":{"@type":"Answer","text":"長くは通りません。ペイロードには発行セッションの IP と User-Agent が記録されており、機械的な速度で評価されたセッションは次の再署名でスコアを下げられます。"}}
+{"@type":"Question","name":"_px3 のペイロードは復号できますか","acceptedAnswer":{"@type":"Answer","text":"実用にはなりません。サイトが管理する鍵で暗号化されているため、分かるのは長さだけです。クライアント側に鍵はありません。"}},
+{"@type":"Question","name":"_px3 が失効前に動かなくなるのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"サーバーが発行時点から独自の寿命を適用しており、それがクッキーの Expires より短いことがあるためです。Set-Cookie のたびにジャーを差し替えてください。"}},
+{"@type":"Question","name":"別の IP からでも _px3 は通りますか","acceptedAnswer":{"@type":"Answer","text":"長くは通りません。ペイロードには発行セッションの IP と User-Agent が記録されており、機械の速度で要求するセッションは次の再署名で再評価されます。"}},
+{"@type":"Question","name":"_px3 と _pxvid はどちらも必要ですか","acceptedAnswer":{"@type":"Answer","text":"多くのサイトでは両方です。_px3 単体では、エッジが参照できないセッションへの署名になります。"}},
+{"@type":"Question","name":"_px3 のスコアを上げる方法はありますか","acceptedAnswer":{"@type":"Answer","text":"ペイロードの編集は署名が壊れるためできません。実ブラウザでセンサーを通すか、解決 API から新しい値を取得するのが現実的です。"}}
 ]}
 </script>
 </body>

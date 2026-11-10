@@ -4,28 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What is the _abck cookie? Akamai Bot Manager, explained</title>
-<meta name="description" content="The _abck cookie is Akamai Bot Manager's sensor ledger. Why it has three segments, why it is rewritten on every response, what the flag values mean, and why replaying an old one fails.">
+<meta name="description" content="The _abck cookie is Akamai Bot Manager's sensor ledger: three tilde-separated segments, a verdict flag, and a value that is rewritten on almost every response. What the flag values mean, why replaying an old one fails, and how to tell a stale cookie from a blocked session.">
 <link rel="canonical" href="https://seencxy.github.io/glossary/akamai-abck/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/akamai-abck/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/akamai-abck/">
 <link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/akamai-abck/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/akamai-abck/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="What is the _abck cookie? Akamai Bot Manager, explained">
+<meta property="og:description" content="Why _abck has three segments, what the verdict flag means, and why holding a captured value still decays.">
+<meta property="og:url" content="https://seencxy.github.io/glossary/akamai-abck/">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
-h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.3}h3{margin-top:1.5rem;font-size:1.02rem}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
-table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
-th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
-nav a{margin-right:1rem}
+pre{background:#f6f6f6;padding:.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:.85rem;line-height:1.6}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}pre{background:#1c1c1c}th,td{border-color:#333}footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"What is the _abck cookie? Akamai Bot Manager, explained","description":"The _abck cookie as a sensor ledger: three segments, the verdict flag, why it is rewritten on every response, and why replaying an old value fails.","inLanguage":"en","datePublished":"2026-11-09","dateModified":"2026-11-10","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://seencxy.github.io/glossary/akamai-abck/"},"about":[{"@type":"Thing","name":"_abck cookie"},{"@type":"Thing","name":"Akamai Bot Manager"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"Glossary","item":"https://seencxy.github.io/glossary/"},{"@type":"ListItem","position":3,"name":"_abck","item":"https://seencxy.github.io/glossary/akamai-abck/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/akamai-abck/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/akamai-abck/" hreflang="ja" lang="ja">日本語</a><a href="/id/glossary/akamai-abck/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
 
 <h1>What is the <code>_abck</code> cookie?</h1>
-<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+<p class="meta">Last reviewed 10 November 2026 · 7 min read</p>
 
 <p><strong>Short answer:</strong> <code>_abck</code> is the main cookie of Akamai Bot Manager. It is not a ticket you earn once — it is a ledger the edge keeps rewriting. Every response can hand you a new value, and the value encodes a verdict about the sensor data your browser sent. If you capture an <code>_abck</code> and hold it still, it starts decaying immediately.</p>
+
+<p>That single sentence explains most Akamai failures. People treat this cookie as an access token — cache it in Redis, share it between workers, reuse it across proxy pools — and then wonder why the same value that returned 200 for one request returns a challenge for the next. The cookie is a report about a session, and a session is a browser plus a network identity plus a request pattern.</p>
 
 <h2>The three segments</h2>
 <p>A typical value looks like <code>F1A2B3...~-1~YAAQ...</code> — three parts separated by tildes:</p>
@@ -35,10 +54,53 @@ nav a{margin-right:1rem}
 <tr><td>2nd</td><td>The verdict flag</td><td><code>0</code> = unknown yet, <code>1</code> = seen as bot, <code>~0</code> or <code>-1</code> = accepted. A <code>1</code> is the one that blocks you no matter how good your headers look.</td></tr>
 <tr><td>3rd</td><td>Issuance record (encoded timestamp and reference data)</td><td>Lets the edge judge how old the verdict is. Stale values get re-evaluated.</td></tr>
 </table>
+<p>The three-segment layout is what you will see on most properties today, but the format is not a public contract: values occasionally carry an extra segment or a different separator on newer deployments. Split on <code>~</code> and read the flag from the <em>second</em> position, but log the whole value when something behaves unexpectedly — the shape is how you notice a rollout.</p>
+
+<h2>What the flag actually means</h2>
+<table>
+<tr><th>Flag</th><th>Reading</th><th>What to do</th></tr>
+<tr><td><code>0</code></td><td>Sensor has not reported a verdict yet, or the report has not been processed</td><td>Wait for another response from the same context; do not send the cookie anywhere else in the meantime.</td></tr>
+<tr><td><code>~0</code></td><td>Accepted, with the session registered</td><td>The normal steady state. Keep the jar, keep the IP.</td></tr>
+<tr><td><code>-1</code></td><td>Accepted, and the value has been superseded by a newer one</td><td>Expect a fresh <code>Set-Cookie</code>; storing this one over the newer copy is a regression, not a refresh.</td></tr>
+<tr><td><code>1</code></td><td>Classified as a bot for this session</td><td>No header change fixes this. The session is burned: new context, new exit IP, new sensor run.</td></tr>
+</table>
+<p>"Burned" is worth taking literally. Once the flag is <code>1</code>, the value keeps reporting that verdict for the life of the cookie, so retrying with different <code>Accept-Language</code> or a new user agent produces the same challenge. Retrying faster makes it worse.</p>
 
 <h2>Why it changes on every response</h2>
 <p>Akamai evaluates sessions continuously rather than once at a gate. Each response can revise the verdict, so the cookie you exported five minutes ago may already describe a session the edge now considers suspicious — for example because your request rate jumped, your IP changed, or your TLS fingerprint stopped agreeing with the user agent you claim.</p>
 <p>This is the single most common failure in Akamai scraping: developers treat <code>_abck</code> like a login token, cache it, and reuse it across workers and IPs. It is closer to a browser session's heartbeat.</p>
+
+<h2>What it looks like in code</h2>
+<p>The useful pattern is one session per identity, with the jar replaced on every <code>Set-Cookie</code> rather than merged.</p>
+<pre><code>from playwright.sync_api import sync_playwright
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    ctx = browser.new_context(proxy={"server": PROXY}, locale="en-US")
+    page = ctx.new_page()
+    page.goto(url, wait_until="networkidle")     # bmak sensor runs here
+
+    def flag(value: str) -> str:
+        parts = value.split("~")
+        return parts[1] if len(parts) &gt; 1 else "?"
+
+    jar = {c["name"]: c["value"] for c in ctx.cookies()}
+    print(sorted(jar), "verdict:", flag(jar.get("_abck", "")))
+
+    # Keep using this ctx. A new browser context on the same IP starts a new
+    # sensor run, so the jar is only reusable together with the identity.</code></pre>
+<pre><code># Replace, never merge: an accepted value can be older than the one you hold.
+import requests
+
+s = requests.Session()
+s.headers.update({"User-Agent": UA_USER_AGENT})   # same UA that earned the cookie
+
+r = s.get(url)
+for c in r.cookies:
+    s.cookies.set(c.name, c.value, domain=c.domain, path=c.path)
+
+if r.status_code == 403 and "~1~" in s.cookies.get("_abck", ""):
+    pass  # session burned: needs a new context and a new exit, not a retry</code></pre>
 
 <h2>The other Akamai cookies</h2>
 <ul>
@@ -46,7 +108,7 @@ nav a{margin-right:1rem}
 <li><code>bm_sv</code> — short-lived, appears around sensitive endpoints.</li>
 <li><code>ak_bmsc</code> — older bot manager cookie, still present on some properties.</li>
 </ul>
-<p>Moving <code>_abck</code> without <code>bm_sz</code>, or the reverse, is a reliable way to look like a replay attack.</p>
+<p>Moving <code>_abck</code> without <code>bm_sz</code>, or the reverse, is a reliable way to look like a replay attack. Both are usually in the same <code>Set-Cookie</code> batch, which is why merging jar entries — instead of replacing them — quietly produces inconsistent pairs.</p>
 
 <h2>Getting past it</h2>
 <p>There are two real options and one that does not exist:</p>
@@ -56,20 +118,34 @@ nav a{margin-right:1rem}
 <li><strong>Do not clear it.</strong> Not every Akamai-protected site needs bot clearance for the pages you actually want: JSON endpoints, sitemaps and mobile APIs are often unprotected and far cheaper to read.</li>
 </ol>
 
+<h2>Reading a 403 with an <code>_abck</code> in hand</h2>
+<table>
+<tr><th>What you see</th><th>What it usually means</th><th>First thing to change</th></tr>
+<tr><td><code>403</code> with a <code>Reference #18...</code> or <code>Reference #1...</code> identifier</td><td>Bot Manager denied the request; the identifier is Akamai's trace, not a hint at what to retry</td><td>Check the flag in the cookie you sent before touching headers</td></tr>
+<tr><td>Flag is <code>1</code></td><td>The session is already classified as a bot</td><td>New context, new exit IP — the existing cookie cannot recover</td></tr>
+<tr><td>Flag is <code>~0</code> but the response is a challenge page</td><td>Sensor data alone passed; the request pattern did not (rate, path order, missing referer)</td><td>Slow down and request like a browser visits, not like a crawler enumerates</td></tr>
+<tr><td>Worked, then failed after a proxy switch</td><td>The verdict is bound to the session, and the IP is part of the session</td><td>Pin one exit per session; rotate sessions instead of hops</td></tr>
+<tr><td>Works from <code>curl</code> with an exported jar, fails under load</td><td>TLS fingerprint and HTTP/2 behaviour differ from the client that earned the value</td><td>Keep the same client stack, or re-earn the cookie in the stack you will use</td></tr>
+</table>
+
 <h2>FAQ</h2>
 <p><strong>Can I decode <code>_abck</code>?</strong> You can decode the third segment's timestamp, but the first is a hash of sensor input. Decoding does not let you forge a valid one.</p>
 <p><strong>Why does a fresh <code>_abck</code> still get a 403?</strong> Often because the flag in segment two is <code>1</code> — the edge already decided the session is a bot, and the cookie is reporting that decision rather than granting access.</p>
 <p><strong>Do I need a new one per request?</strong> No. One per session, refreshed on the schedule the site enforces. Rotating it per request is itself a signal.</p>
+<p><strong>How long is <code>_abck</code> valid?</strong> There is no single published lifetime. The third segment dates the verdict, and the edge re-decides on its own schedule, so the only reliable rule is to replace the value on every response rather than wait for an expiry.</p>
+<p><strong>Do I need <code>bm_sz</code> too?</strong> Yes, on most properties. They are issued together and a mismatched pair looks like a replay.</p>
 
 <footer>
-<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>.</p>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/px3/">_px3</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>. Japanese edition: <a href="/ja/glossary/akamai-abck/" hreflang="ja" lang="ja">_abck クッキーとは</a>.</p>
 </footer>
 
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Can the _abck cookie be decoded?","acceptedAnswer":{"@type":"Answer","text":"Only the third segment's timestamp. The first segment is a hash of sensor input, so decoding it does not allow you to forge a valid cookie."}},
 {"@type":"Question","name":"Why does a fresh _abck cookie still return 403?","acceptedAnswer":{"@type":"Answer","text":"Because the second segment carries a verdict flag. A value of 1 means Akamai already classified the session as a bot, so the cookie reports that decision instead of granting access."}},
-{"@type":"Question","name":"Do you need a new _abck for every request?","acceptedAnswer":{"@type":"Answer","text":"No. One per session, refreshed on the schedule the site enforces. Rotating it per request is itself a suspicious signal."}}
+{"@type":"Question","name":"Do you need a new _abck for every request?","acceptedAnswer":{"@type":"Answer","text":"No. One per session, refreshed on the schedule the site enforces. Rotating it per request is itself a suspicious signal."}},
+{"@type":"Question","name":"How long is the _abck cookie valid?","acceptedAnswer":{"@type":"Answer","text":"There is no single published lifetime. The third segment dates the verdict and the edge re-decides on its own schedule, so replace the value on every response rather than waiting for an expiry."}},
+{"@type":"Question","name":"Do you also need the bm_sz cookie?","acceptedAnswer":{"@type":"Answer","text":"Yes on most properties. _abck and bm_sz are issued together, and a mismatched pair looks like a replay."}}
 ]}
 </script>
 </body>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>打码平台怎么选：验证码识别 API 的六个核对项</title>
+<meta name="description" content="打码平台（验证码识别 API）选型清单：覆盖哪些验证码类型、按次计费口径、失败是否收费、并发与超时、轮询还是回调、合规边界。写给要报预算、要做压测的人。">
+<link rel="canonical" href="https://seencxy.github.io/zh/dama-pingtai/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="打码平台怎么选：验证码识别 API 的六个核对项">
+<meta property="og:description" content="覆盖范围、计费口径、失败计费、并发与超时、接入方式、合规边界——六项核对清单。">
+<style>
+:root{--fg:#1a1a1a;--muted:#5c5c66;--line:#e4e4e9;--bg:#fff;--accent:#0b5fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+main{max-width:44rem;margin:0 auto;padding:3rem 1.25rem 6rem}
+a{color:var(--accent)}
+h1{font-size:1.9rem;line-height:1.35;margin:0 0 .6rem;letter-spacing:-.01em}
+h2{font-size:1.25rem;margin:2.6rem 0 .8rem}
+h3{font-size:1.05rem;margin:1.8rem 0 .5rem}
+p{margin:0 0 1rem}
+.lead{color:var(--muted);font-size:1.05rem;margin-bottom:2rem}
+table{border-collapse:collapse;width:100%;margin:1.2rem 0;font-size:.94rem}
+th,td{border:1px solid var(--line);padding:.55rem .7rem;text-align:left;vertical-align:top}
+th{background:#f7f7fa}
+code{background:#f2f2f6;padding:.1rem .35rem;border-radius:4px;font-size:.9em}
+pre{background:#f7f7fa;border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem;overflow:auto;font-size:.86rem;line-height:1.6}
+ul,ol{padding-left:1.4rem;margin:0 0 1rem}
+li{margin:.3rem 0}
+.note{background:#f7f7fa;border-left:3px solid var(--accent);padding:.8rem 1rem;margin:1.2rem 0;font-size:.95rem}
+footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<p style="font-size:.85rem;color:#5c5c66;margin-bottom:1.5rem"><a href="https://seencxy.github.io/">Anti-bot engineering</a> / <a href="https://seencxy.github.io/glossary/">术语表</a></p>
+<h1>打码平台怎么选：验证码识别 API 的六个核对项</h1>
+<p class="lead">「打码平台」在中文语境里指按次调用、返回验证码票据（token）的接口服务。多数选型讨论停在这一步：能不能过。真正决定它在生产里能不能用的，是下面六项；每一项都能在签约前用一两个请求问出答案。</p>
+
+<h2>先把术语对齐</h2>
+<p>一个验证码识别 API 的典型调用链是：你带着站点信息创建任务 → 平台在服务端跑通挑战、拿到服务返回的票据 → 你把票据放进自己的请求头或表单。票据通常有时效（几十秒到几分钟），并且往往绑定 IP、UA 或会话。中文里说的「打码」偏图片识别，而现在的业务量主要在脚本类验证码（Turnstile、DataDome、PerimeterX、Akamai、极验、阿里云、腾讯防水墙）上，两者不是一回事，报价也不是一个量级。</p>
+
+<h2>核对一：覆盖的验证码类型</h2>
+<p>先列你必须过的站点用的是哪一家，再看对方文档里有没有对应的独立参数。这里最容易踩的坑是「支持某家」但只有图片 OCR 那一支，脚本类挑战根本没接。</p>
+<table>
+<thead><tr><th>验证码</th><th>要核对的具体项</th></tr></thead>
+<tbody>
+<tr><td>Cloudflare Turnstile / Interstitial</td><td>返回的是 <code>cf_clearance</code> 还是 <code>turnstile</code> token，两者不能混用</td></tr>
+<tr><td>DataDome</td><td>是否支持 <code>datadome</code> cookie 交付，是否带 <code>interstitial</code> 分支</td></tr>
+<tr><td>PerimeterX / HUMAN</td><td>是否有不依赖 cookie 的 s2s 通道</td></tr>
+<tr><td>Akamai</td><td>是否接受你自己抓的 sensor 脚本 URL</td></tr>
+<tr><td>Imperva / reese84</td><td>是否区分 reese84 与 UT.mvc 两条路（参数不同）</td></tr>
+<tr><td>极验 / 阿里云 / 腾讯防水墙</td><td>是否国内节点，失败率与延迟直接受此影响</td></tr>
+</tbody>
+</table>
+
+<h2>核对二：计费口径</h2>
+<p>问三句话就够：按提交的任务计费，还是按成功的任务计费；票据过期重取算不算一次；最低充值多少。按成功计费的价格看起来高，但如果你的目标站点通过率只有六成，实付往往更低。把「每千次成功」折算成你上月真实请求量，再和按调用计费的报价比，结论通常和单价排序相反。</p>
+
+<h2>核对三：失败是否收费</h2>
+<p>文档里写「失败不计费」的，要在控制台里看一眼任务状态机：<code>失败</code>、<code>取消</code>、<code>超时</code> 三种终态是不是都不扣。有的平台超时扣、失败退，压测时最容易被这一条吃掉预算。</p>
+
+<h2>核对四：并发与超时</h2>
+<p>验证码票据的寿命按秒算，所以平台的排队时间就是你的失败率来源。签之前实测两件事：并发上限是多少、超过后是排队还是直接报错；平均耗时和 P95 各是多少。一个简单的压测脚本，跑 200 个任务就能看出真实形态。</p>
+<pre>import time, os, requests
+
+BASE = "https://www.tiam.codes/v1"
+H = {"Authorization": "Bearer " + os.environ["SOLVEHUB_KEY"]}
+
+t0 = time.time()
+r = requests.post(BASE + "/tasks", headers=H, json={
+    "type": "turnstile",
+    "sitekey": "0x4AAAAAAA...",
+    "url": "https://example.com/login",
+}).json()
+tid = r["taskId"]
+
+while True:
+    s = requests.get(BASE + "/tasks/" + tid, headers=H).json()
+    if s["status"] in ("completed", "failed", "cancelled"):
+        break
+    time.sleep(1)
+
+print(s["status"], round(time.time() - t0, 1), "s")</pre>
+
+<h2>核对五：轮询还是回调，SDK 是否真的能用</h2>
+<p>轮询实现最简单，回调省请求但要求你有一个公网端点。两种都支持的平台优先。再看 SDK：仓库里有没有最近的提交、能不能跑通一个最小示例。只有一段 cURL 示例的平台，接进 CI 的时间要按半天算。</p>
+
+<h2>核对六：合规边界</h2>
+<p>最后这一项经常被跳过，但它决定这条链路能不能进公司的采购流程。一个可以放心接入的服务，条款里应当写明仅用于已获授权的测试与自有资产，并对滥用有明确处理方式；反过来，任何要求你把凭据贴进第三方页面的流程都该直接否掉。</p>
+<div class="note">我们在做的是 <a href="https://www.tiam.codes/">SolveHub</a>：一个 REST 端点覆盖上述脚本类验证码，按成功任务计费、$0.10 试用额度，控制台有中英日三语。上面的六项自查清单同样适用于它——如果你按这份清单去问，得到的回答应该能对上。</div>
+
+<h2>常见问题</h2>
+<h3>打码平台和自建 solver 怎么选？</h3>
+<p>按每月需要解决的验证码次数判断。低于几千次时，自建要维护浏览器指纹、代理池和逆向脚本的更新，成本远超按次付费；只有当量足够大、且目标站点长期固定时，自建才有优势。</p>
+<h3>返回的 token 为什么几分钟就失效？</h3>
+<p>票据通常绑定 IP、UA 和一段签发时间。换出口 IP、换浏览器指纹或超过签发窗口，服务端都会判定无效。这也解释了为什么「抓到一次就复用一周」的做法会在一两天后集体失效。</p>
+<h3>按成功计费一定更便宜吗？</h3>
+<p>不一定，但更可预测。通过率低于七成时按成功计费明显省钱；通过率很高时两者接近，此时应该看延迟和并发上限。</p>
+
+<footer>
+<p>作者维护 <a href="https://www.tiam.codes/">SolveHub</a>（<a href="https://github.com/seencxy/solvehub-python">Python</a> / <a href="https://github.com/seencxy/solvehub-node">Node</a> SDK）。英文术语表：<a href="https://seencxy.github.io/glossary/cf-clearance/">cf_clearance</a>、<a href="https://seencxy.github.io/glossary/akamai-abck/">_abck</a>、<a href="https://seencxy.github.io/glossary/reese84/">reese84</a>、<a href="https://seencxy.github.io/glossary/datadome-cookie/">datadome</a>。</p>
+</footer>
+</main>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"打码平台和自建 solver 怎么选？","acceptedAnswer":{"@type":"Answer","text":"按每月需要解决的验证码次数判断。低于几千次时，自建要维护浏览器指纹、代理池和逆向脚本的更新，成本远超按次付费；只有当量足够大、且目标站点长期固定时，自建才有优势。"}},
+{"@type":"Question","name":"返回的 token 为什么几分钟就失效？","acceptedAnswer":{"@type":"Answer","text":"票据通常绑定 IP、UA 和一段签发时间。换出口 IP、换浏览器指纹或超过签发窗口，服务端都会判定无效。"}},
+{"@type":"Question","name":"按成功计费一定更便宜吗？","acceptedAnswer":{"@type":"Answer","text":"不一定，但更可预测。通过率低于七成时按成功计费明显省钱；通过率很高时两者接近，此时应该看延迟和并发上限。"}}
+]}
+</script>
+</body>
+</html>

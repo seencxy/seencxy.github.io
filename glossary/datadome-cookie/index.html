@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is the datadome cookie? DataDome detection, explained</title>
+<meta name="description" content="The datadome cookie is DataDome's client-side verdict. Why rotating proxies makes blocking worse, why the cookie is re-issued constantly, and how the interstitial path differs from the slider CAPTCHA.">
+<link rel="canonical" href="https://seencxy.github.io/glossary/datadome-cookie/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
+th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<h1>What is the <code>datadome</code> cookie?</h1>
+<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+
+<p><strong>Short answer:</strong> <code>datadome</code> is the cookie DataDome sets once a client has been cleared. It packs a client-side signal payload plus a signature, and it is short-lived and fingerprint-bound. It is also the cookie people blame for the wrong problem: most DataDome blocks are caused by the client's behaviour before the cookie is ever issued.</p>
+
+<h2>How DataDome decides</h2>
+<p>DataDome runs a script on the page that fingerprints the browser: canvas, WebGL, fonts, timezone, hardware and a dozen smaller tells. The result is POSTed and answered with a cookie. The decision point is that POST — not your HTTP headers, and not the cookie itself.</p>
+<p>Which is why the usual sequence looks like this:</p>
+<ol>
+<li>Your script requests a page and gets <code>403</code> with a DataDome captcha or interstitial.</li>
+<li>You rotate the proxy and retry.</li>
+<li>You get blocked faster, and on more URLs than before.</li>
+</ol>
+<p>Rotating the exit IP changes the strongest single signal DataDome has. A fresh IP with the same broken fingerprint reads as a bot evading a ban, so the score drops rather than resets.</p>
+
+<h2>Two different challenges</h2>
+<table>
+<tr><th>Type</th><th>What it looks like</th><th>What solves it</th></tr>
+<tr><td>Interstitial</td><td>Full-page "blocked" screen with a device-check animation</td><td>Running the script and letting it redirect. Can be done with an API that returns the cookie for the URL.</td></tr>
+<tr><td>Slider CAPTCHA</td><td>Puzzle asking you to drag a piece into place</td><td>A real user gesture, or an image-based solving service.</td></tr>
+</table>
+<p>They need different handling, and mixing them up wastes a lot of API budget.</p>
+
+<h2>Keeping the cookie alive</h2>
+<ul>
+<li><strong>Stay on one IP.</strong> DataDome pins clearance to the exit that earned it. Proxy rotation should happen between sessions, not inside one.</li>
+<li><strong>Keep the user agent and TLS stack consistent.</strong> A cookie earned by a real browser and replayed by <code>requests</code> is a mismatch DataDome detects cheaply.</li>
+<li><strong>Refresh on a schedule, not on error.</strong> By the time you see a <code>403</code>, the session is already scored; solving then costs more than rotating the whole session did.</li>
+<li><strong>Slow the first requests.</strong> A brand-new session that hits ten URLs in two seconds is scored on that pattern alone.</li>
+</ul>
+
+<h2>Where the API fits</h2>
+<p>For scripted workloads, a solving API is the pragmatic path: it runs the interstitial in a controlled browser, returns the <code>datadome</code> cookie, and (with SolveHub at least) tells you which proxy exit to send the real traffic through. <a href="https://www.tiam.codes/">SolveHub</a> handles DataDome interstitial and slider tasks on one REST endpoint, billed per completed task.</p>
+
+<h2>FAQ</h2>
+<p><strong>Does the cookie survive a page reload?</strong> Yes, until it expires or the session is re-scored. It does not survive an IP change.</p>
+<p><strong>Can I reuse it across workers?</strong> Only from the same IP and fingerprint. Otherwise it is worse than having no cookie, because it looks like replay.</p>
+<p><strong>Is <code>datadome</code> the same for every site?</strong> No — each customer has its own configuration and keys, so a cookie is valid for one site only.</p>
+
+<footer>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>.</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Does the datadome cookie survive a page reload?","acceptedAnswer":{"@type":"Answer","text":"Yes, until it expires or the session is re-scored. It does not survive a change of IP address."}},
+{"@type":"Question","name":"Can a datadome cookie be reused across workers?","acceptedAnswer":{"@type":"Answer","text":"Only from the same IP address and fingerprint. Otherwise reuse looks like replay and scores worse than sending no cookie."}},
+{"@type":"Question","name":"Is the datadome cookie the same for every site?","acceptedAnswer":{"@type":"Answer","text":"No. Each DataDome customer has its own configuration and keys, so a cookie is only valid for one site."}}
+]}
+</script>
+</body>
+</html>

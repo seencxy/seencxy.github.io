@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>_abck クッキーとは ― Akamai Bot Manager が応答ごとに書き換える「台帳」</title>
+<meta name="description" content="_abck は Akamai Bot Manager の主要クッキーです。一度取れば終わりの入場券ではなく、エッジが応答ごとに書き換える台帳です。3 つの区切りの意味、コピーしても別マシンで通らない理由、403 が続くときの見方をまとめます。">
+<link rel="canonical" href="https://seencxy.github.io/ja/glossary/akamai-abck/">
+<link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/akamai-abck/">
+<link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/akamai-abck/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.35;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.4}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary (EN)</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
+<h1><code>_abck</code> クッキーとは</h1>
+<p class="meta">最終確認 2026年11月10日 · 約5分</p>
+
+<p><strong>結論から:</strong> <code>_abck</code> は Akamai Bot Manager の主要クッキーです。一度取れば使える「入場券」ではなく、エッジが応答のたびに書き換える「台帳」に近いものです。ブラウザが送ったセンサーデータに対する判定が値に埋め込まれていて、同じ値を保持し続けると、その判定は古くなっていきます。</p>
+
+<h2>値は 3 つの区切りでできている</h2>
+<p>典型的な値は <code>F1A2B3...~-1~YAAQ...</code> のように、チルダで区切られた 3 つの部分から成ります。</p>
+<table>
+<tr><th>位置</th><th>中身</th><th>実務での意味</th></tr>
+<tr><td>1 つ目</td><td><code>bmak</code>（センサースクリプト）が集めたデータのハッシュ</td><td>スクリプトが動いたことと、その報告内容を証明します。書き換えるとクッキー全体が無効になります。</td></tr>
+<tr><td>2 つ目</td><td>判定フラグ</td><td><code>0</code> は未判定、<code>1</code> はボットと判定、<code>~0</code> や <code>-1</code> は通過。ヘッダーをどれだけ整えても、<code>1</code> が入っていれば通れません。</td></tr>
+<tr><td>3 つ目</td><td>発行記録（エンコードされた時刻と参照情報）</td><td>エッジがその判定の古さを測る材料です。古い値は再評価されます。</td></tr>
+</table>
+
+<h2>なぜ毎回書き換わるのか</h2>
+<p>Akamai は入口で一度だけ判定するのではなく、セッションを継続的に評価します。応答ごとに判定が更新されうるため、5 分前に書き出したクッキーは、すでに「疑わしいセッション」を指していることがあります。理由は、リクエスト頻度が跳ねた、IP が変わった、名乗っている User-Agent と TLS フィンガープリントが食い違った、などです。</p>
+<p>スクレイピングで最も多い失敗はここです。<code>_abck</code> をログイントークンのように扱ってキャッシュし、ワーカーや IP をまたいで使い回すと、ほぼ確実に落ちます。</p>
+
+<h2>一緒に動かす必要があるクッキー</h2>
+<ul>
+<li><code>bm_sz</code> ― セッションとテレメトリ用。<code>_abck</code> と必ずセットで移動させます。</li>
+<li><code>bm_sv</code> ― 寿命が短く、特定のエンドポイント付近で現れます。</li>
+<li><code>ak_bmsc</code> ― 旧世代の判定用。<code>_abck</code> を持たないプロパティではこちらが使われます。</li>
+</ul>
+<p><code>_abck</code> だけを移す、あるいは <code>bm_sz</code> だけを移すのは、リプレイ攻撃のシグナルになります。</p>
+
+<h2>通すための現実的な選択肢</h2>
+<ol>
+<li><strong>センサーを実際に動かす。</strong> 保護されたページを実ブラウザで開き、センサースクリプトを実行させ、以降のリクエストで同じ IP・User-Agent・TLS を保ちます。確実ですが、セッションごとにブラウザを 1 つ消費します。</li>
+<li><strong>センサーデータを生成する。</strong> 生成スクリプトは難読化され、頻繁に変わります。自前で追随するのは終わりのない作業なので、URL を渡すと有効な <code>_abck</code> を返す API に置き換えるのが一般的です。この用途向けの API は、完了したタスクだけを課金する従量制が主流です。</li>
+<li><strong>そもそも避ける。</strong> 目的のページすべてが保護されているとは限りません。JSON エンドポイント、サイトマップ、モバイル向け API は保護外のことが多く、こちらのほうが安く済みます。</li>
+</ol>
+
+<h2>よくある質問</h2>
+<p><strong>_abck はデコードできますか。</strong> 3 つ目の時刻は読めますが、1 つ目はセンサー入力のハッシュです。デコードしても、有効な値を作り直すことはできません。</p>
+<p><strong>新しい _abck なのに 403 が返るのはなぜですか。</strong> 2 つ目のフラグが <code>1</code> になっていることが多いです。エッジはすでにそのセッションをボットと判定しており、クッキーは許可証ではなく判定結果を運んでいます。</p>
+<p><strong>リクエストごとに取り直す必要がありますか。</strong> いいえ。セッションごとに 1 つで、サイトが定める周期で更新します。リクエストごとに回すこと自体がシグナルになります。</p>
+
+<footer>
+<p>執筆: Lsr。関連: <a href="/glossary/reese84/">reese84</a>、<a href="/glossary/px3/">_px3</a>、<a href="/glossary/cf-clearance/">cf_clearance</a>。Akamai のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/akamai">Akamai Bot Manager のドキュメント</a> にまとめています。</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"_abck クッキーはデコードできますか","acceptedAnswer":{"@type":"Answer","text":"3つ目の区切りの時刻は読めますが、1つ目はセンサー入力のハッシュです。デコードしても有効な値を偽造することはできません。"}},
+{"@type":"Question","name":"新しい _abck なのに 403 が返るのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"2つ目の区切りが判定フラグで、1 が入っていると Akamai はそのセッションをボットと判定済みです。クッキーは許可証ではなく判定結果を運んでいます。"}},
+{"@type":"Question","name":"リクエストごとに _abck を取り直す必要がありますか","acceptedAnswer":{"@type":"Answer","text":"いいえ。セッションごとに1つで、サイトが定める周期で更新します。リクエストごとの入れ替えはそれ自体が不審なシグナルになります。"}}
+]}
+</script>
+</body>
+</html>

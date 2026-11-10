@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cf_clearance クッキーとは ― Cloudflare のクリアランスを正しく扱う</title>
+<meta name="description" content="cf_clearance は Cloudflare の Managed Challenge などを通過したブラウザに付くクッキーです。何が入っているか、なぜ 30 分で切れるのか、プロキシを回すと余計に弾かれる理由を整理します。">
+<link rel="canonical" href="https://seencxy.github.io/ja/glossary/cf-clearance/">
+<link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/cf-clearance/">
+<link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/cf-clearance/">
+<link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/cf-clearance/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.35;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.4}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
+th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
+nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
+a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
+footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">用語集 (JA)</a><a href="/glossary/cf-clearance/" hreflang="en" lang="en">English</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
+<h1><code>cf_clearance</code> クッキーとは</h1>
+<p class="meta">最終確認 2026年11月10日 · 約5分</p>
+
+<p><strong>結論から:</strong> <code>cf_clearance</code> は Cloudflare が「ボットではない」と判断したブラウザに付けるクッキーです。こちらが解いて送るトークンではなく、Cloudflare のエッジが発行する「領収書」です。通過したチャレンジの種類が刻まれ、IP アドレスと User-Agent に紐づき、有効期間は既定で 30 分です。その後に起きるトラブルは、ほぼこの 3 つのどれかが原因です。</p>
+
+<h2>どこから来るのか</h2>
+<p>このクッキーは、次の 3 種類のチャレンジのいずれかを通過した後にだけ現れます。</p>
+<ul>
+<li><strong>JS チャレンジ</strong> ― 「ブラウザを確認しています」の画面。ページ内で小さな JavaScript の計算を走らせ、成功するとエッジがクリアランスを渡します。</li>
+<li><strong>Managed Challenge</strong> ― JS を出すか、目に見える CAPTCHA を出すか、何もしないかを Cloudflare がリクエストごとに選びます。どれが動いたかはクライアント側からは分かりません。</li>
+<li><strong>Turnstile ウィジェット</strong> ― ここが最も誤解される点です。ウィジェットが返すトークンはクリアランスクッキーでは<em>ありません</em>。ウィジェットのトークンは自サーバーでの検証に使うもので、<code>cf_clearance</code> は同じリクエストの流れの中で Cloudflare のエッジが別に発行します。</li>
+</ul>
+<p>この区別は重要です。Turnstile のトークンを買ってヘッダーに貼り、それでもチャレンジ画面が出ると不思議に思う、という話がよくあります。トークンが答えるのは「人間がウィジェットを解いた」であり、クッキーが答えるのは「この接続はチャレンジを完了した」です。</p>
+
+<h2>中身と、何に縛られているか</h2>
+<p>値は 40〜60 文字程度の不透明な文字列と、ドットで区切られた接尾辞からなり、署名されています。Cloudflare は形式を公開していませんが、実務上の結論は中身に依存しません。チャレンジを実行せずにクライアント側で作ることはできず、別のマシンへ移すと死にます。</p>
+<table>
+<tr><th>縛られている対象</th><th>変わるとどうなるか</th></tr>
+<tr><td>IP アドレス</td><td>クリアランスは即座に無効になり、再びチャレンジになります。プロキシを回すと<em>余計に</em>弾かれるのはこのためです。</td></tr>
+<tr><td>User-Agent / TLS フィンガープリント</td><td>同じ結果です。ブラウザが受けたクッキーを <code>requests</code> から再生すると、フィンガープリントだけで落ちます。</td></tr>
+<tr><td>ゾーン</td><td>あるサイトのクッキーが別のサイトで効くことはありません。同じ Cloudflare アカウントの下でも同じです。</td></tr>
+<tr><td>時間</td><td>既定の寿命は 30 分。セッション限りのクッキーはブラウザを閉じると消えます。古いクッキーは無いより悪い状態です。再生のシグナルになるからです。</td></tr>
+</table>
+
+<h2>混同されやすい 3 つのクッキー</h2>
+<ul>
+<li><code>__cf_bm</code> ― Bot Management のテレメトリで、クリアランスではありません。日常的に付与され、通過を意味しません。</li>
+<li><code>cf_chl_2</code> / <code>cf_chl_prog</code> ― 実行中のチャレンジの途中状態です。これが見えているなら、まだ通過していません。</li>
+<li><code>cf_clearance</code> ― 「エッジを通り抜けた」を意味する唯一のクッキーです。</li>
+</ul>
+
+<h2>意図的に手に入れる 3 つの方法</h2>
+<ol>
+<li><strong>実ブラウザを動かす。</strong> そのクッキーを使うのと同じマシンで Playwright や Selenium を動かします。一度チャレンジを通し、クッキージャーを書き出し、以降のリクエストで同じ IP と User-Agent を保ちます。インタラクティブなチャレンジ（Turnstile）だと無人では通りません。</li>
+<li><strong>解決サービスを使う。</strong> スクリプト処理では、サイトキーと URL を渡すと <code>cf_clearance</code> を返す API を使うのが一般的です。SolveHub は Cloudflare のインタースティシャルと Turnstile を<a href="https://www.tiam.codes/ja/">1 つの REST エンドポイント</a>で扱い、完了したタスクだけを課金します。どのサービスを使う場合でも、返ってきたクッキーと、実際にリクエストを出すプロキシの出口が同じであることを確認してください。</li>
+<li><strong>そもそもクッキーを必要としない。</strong> オリジンのサイトマップ、RSS、API エンドポイント、提携先のデータフィードに届くなら、チャレンジは現れません。最も安く、最も見落とされる選択肢です。</li>
+</ol>
+
+<h2>使い回しが失敗する典型</h2>
+<ul>
+<li>クッキーを書き出したあと、別のプロキシからリクエストを出した ― IP の縛りで落ちます。</li>
+<li>Chrome から書き出したクッキーを Python の <code>requests</code> のヘッダーで再生した ― TLS フィンガープリントで落ちます。</li>
+<li>Redis に 24 時間の TTL でキャッシュした ― 30 分で無効になるのに、コードは送り続けます。</li>
+<li>並列ワーカー間でクッキーを共有した ― 最初の 2 本は通り、残りはクレデンシャルスタッフィングのように見えます。</li>
+</ul>
+<p>必要なのは優れたソルバーではなく、設計の変更です。1 つのセッションを 1 つの出口 IP、1 つのフィンガープリント、1 つのクッキーに固定し、クッキーが切れたら 3 つまとめて入れ替えます。</p>
+
+<h2>よくある質問</h2>
+<p><strong>別のサブドメインでも cf_clearance は効きますか。</strong> 効きません。クリアランスはホスト名とゾーン単位です。</p>
+<p><strong>ブラウザなしで生成できますか。</strong> 計算では作れません。チャレンジの完了が必要で、そのためには JS エンジンか、代わりに実行してくれるサービスが要ります。</p>
+<p><strong>有効に見えるクッキーなのに 403 が返るのはなぜですか。</strong> 発行時と使用時で IP か User-Agent がずれていることがほとんどです。ソルバーを疑う前に、両側で両方をログに残してください。</p>
+
+<footer>
+<p>執筆: Lsr。関連: <a href="/ja/glossary/akamai-abck/">_abck</a>、<a href="/ja/glossary/reese84/">reese84</a>、<a href="/ja/glossary/px3/">_px3</a>。Cloudflare のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/cloudflare">Cloudflare のドキュメント</a> にまとめています。</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"別のサブドメインでも cf_clearance は効きますか","acceptedAnswer":{"@type":"Answer","text":"効きません。Cloudflare のクリアランスは発行したホスト名とゾーンに限定されます。"}},
+{"@type":"Question","name":"ブラウザなしで cf_clearance を生成できますか","acceptedAnswer":{"@type":"Answer","text":"計算では作れません。チャレンジの完了が必要で、そのためには JavaScript エンジンか、代わりに実行する解決サービスが要ります。"}},
+{"@type":"Question","name":"有効に見える cf_clearance で 403 が返るのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"発行時と使用時で IP アドレスか User-Agent が変わっているためです。クッキーはその両方に縛られています。"}}
+]}
+</script>
+</body>
+</html>

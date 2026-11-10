@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is the reese84 cookie? Imperva / Incapsula, explained</title>
+<meta name="description" content="reese84 is Imperva's (formerly Incapsula) bot-detection cookie. Why it is short-lived, why it is bound to the session that solved it, and how the UT.mvc script URL fits in.">
+<link rel="canonical" href="https://seencxy.github.io/glossary/reese84/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
+th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<h1>What is the <code>reese84</code> cookie?</h1>
+<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+
+<p><strong>Short answer:</strong> <code>reese84</code> is the cookie Imperva (the company formerly known as Incapsula) issues after its JavaScript sensor has run and passed. It is short-lived — commonly five to fifteen minutes — and tied to the session, user agent and IP that produced it. It took over from the older <code>incap_ses</code> / <code>visid_incap</code> pair as the bot-detection signal of record, though both of those still appear on Imperva-protected sites.</p>
+
+<h2>How it is issued</h2>
+<p>The page loads a script — often from a path containing <code>UT.mvc</code>, or a per-site script URL. That script gathers browser signals, encrypts them with per-site keys, and POSTs to an endpoint that answers with the cookie value. Three consequences follow directly:</p>
+<ol>
+<li>You cannot compute the cookie without running that script, because the keys are per-site and rotate.</li>
+<li>You cannot request the cookie without the exact script URL, which is itself per-site and often only present in the challenge HTML.</li>
+<li>You cannot move the cookie to another machine once obtained, because the next request re-validates the pairing.</li>
+</ol>
+
+<h2>Why it expires so fast</h2>
+<table>
+<tr><th>Binding</th><th>Symptom when violated</th></tr>
+<tr><td>IP address</td><td>Immediate re-challenge on the next request, even seconds later.</td></tr>
+<tr><td>User agent + TLS fingerprint</td><td>Cookie looks valid, endpoint returns <code>403</code> with an Imperva block page.</td></tr>
+<tr><td>Cookie lifetime (minutes)</td><td>Works, then flips mid-run. Long jobs must refresh, not cache.</td></tr>
+<tr><td>Request rate</td><td>Cookie revoked early; the value that survived 50 requests fails at 200.</td></tr>
+</table>
+
+<h2>The related cookies</h2>
+<ul>
+<li><code>incap_ses_*</code> — session identifier, one per session, suffixed per zone.</li>
+<li><code>visid_incap_*</code> — visitor identifier, longer-lived, used for returning-visitor scoring.</li>
+<li><code>nlbi_*</code> — load-balancer affinity, not a security cookie, but useful for session stability.</li>
+</ul>
+
+<h2>Two ways to handle it</h2>
+<p><strong>Run the sensor yourself.</strong> A real browser on a fixed IP passes the challenge and holds the cookie for its short life. This is what a scraping browser pool does: honest and expensive.</p>
+<p><strong>Ask for the cookie.</strong> A solving API takes the site URL (and the script URL when the site hides it) and returns a fresh <code>reese84</code> together with the proxy exit that should be used with it. <a href="https://www.tiam.codes/">SolveHub</a> exposes this through one REST endpoint and bills per completed task; the detail that matters is that real requests must leave through the same exit that produced the cookie.</p>
+<p>There is a third path people miss: Imperva-protected sites usually leave sitemaps, RSS feeds, static assets and some JSON APIs completely unprotected. If the data you want is reachable there, no cookie is needed at all.</p>
+
+<h2>FAQ</h2>
+<p><strong>Is <code>reese84</code> the same as <code>incap_ses</code>?</strong> No. <code>incap_ses</code> is a session id; <code>reese84</code> carries the bot verdict from the sensor.</p>
+<p><strong>Can I reuse one cookie for many parallel requests?</strong> Briefly, if they share the same IP and fingerprint. Aggressive fan-out is itself a revocation trigger.</p>
+<p><strong>Why does the endpoint return challenge HTML instead of JSON?</strong> The cookie expired or the session drifted. Re-solve instead of retrying the same value.</p>
+
+<footer>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/cf-clearance/">cf_clearance</a>, <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>.</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Is reese84 the same as incap_ses?","acceptedAnswer":{"@type":"Answer","text":"No. incap_ses is a session identifier, while reese84 carries the bot verdict produced by Imperva's JavaScript sensor."}},
+{"@type":"Question","name":"Can one reese84 cookie serve many parallel requests?","acceptedAnswer":{"@type":"Answer","text":"Only briefly, and only from the same IP address and fingerprint. Aggressive parallel use triggers early revocation."}},
+{"@type":"Question","name":"Why does an Imperva protected endpoint return challenge HTML instead of JSON?","acceptedAnswer":{"@type":"Answer","text":"The cookie has expired or the session changed. Solve again instead of retrying the same cookie value."}}
+]}
+</script>
+</body>
+</html>

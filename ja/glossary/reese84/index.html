@@ -3,41 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>reese84 クッキーとは ― Imperva が数分で失効させるセンサー判定</title>
-<meta name="description" content="reese84 は Imperva（旧 Incapsula）の JavaScript センサーが通ったあとに発行されるクッキーです。寿命は数分、IP と User-Agent に紐づきます。発行の仕組み、失効が速い理由、incap_ses との違いをまとめます。">
+<title>reese84 クッキーとは ― Imperva のセンサー判定が数分で切れる理由</title>
+<meta name="description" content="reese84 は Imperva（旧 Incapsula）の JavaScript センサーが通ったあとに発行されるクッキーです。値の形、発行の仕組み、5〜15 分で失効する理由、Imperva 配下の見分け方、403 の切り分け表、Playwright での扱い方をまとめます。">
 <link rel="canonical" href="https://seencxy.github.io/ja/glossary/reese84/">
 <link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/reese84/">
 <link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/reese84/">
 <link rel="alternate" hreflang="id" href="https://seencxy.github.io/id/glossary/reese84/">
 <link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/reese84/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="reese84 クッキーとは ― Imperva のセンサー判定が数分で切れる理由">
+<meta property="og:description" content="Imperva の JavaScript センサーが発行する reese84 クッキーの値の形、失効の速さ、403 の切り分け方。">
+<meta property="og:url" content="https://seencxy.github.io/ja/glossary/reese84/">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Segoe UI",Roboto,sans-serif;color:#111}
 h1{line-height:1.35;margin-bottom:.3rem}h2{margin-top:2.2rem;line-height:1.4}
 .meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+pre{background:#f6f6f6;padding:.9rem 1rem;border-radius:6px;overflow-x:auto;font-size:.86rem;line-height:1.6}
 table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}
 th,td{border:1px solid #ddd;padding:.45rem .6rem;text-align:left;vertical-align:top}
 nav{margin-bottom:2rem;font-size:.92rem}nav a{margin-right:1rem}
 a{color:#0b5fff;text-decoration:none}a:hover{text-decoration:underline}
 footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.9rem;color:#666}
-@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}th,td{border-color:#333}footer{border-color:#333}}
+@media (prefers-color-scheme:dark){body{background:#111;color:#eee}code{background:#222}pre{background:#1c1c1c}th,td{border-color:#333}footer{border-color:#333}}
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"TechArticle","headline":"reese84 クッキーとは ― Imperva のセンサー判定が数分で切れる理由","description":"Imperva（旧 Incapsula）の JavaScript センサーが発行する reese84 クッキーの値の形、失効の速さ、403 の切り分け方、Playwright での扱い方。","inLanguage":"ja","datePublished":"2026-11-10","dateModified":"2026-11-10","author":{"@type":"Person","name":"Lsr","url":"https://github.com/seencxy"},"publisher":{"@type":"Organization","name":"Anti-bot engineering notes","url":"https://seencxy.github.io/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://seencxy.github.io/ja/glossary/reese84/"},"about":[{"@type":"Thing","name":"reese84 cookie"},{"@type":"Thing","name":"Imperva Incapsula"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Anti-bot engineering notes","item":"https://seencxy.github.io/"},{"@type":"ListItem","position":2,"name":"用語集","item":"https://seencxy.github.io/ja/glossary/"},{"@type":"ListItem","position":3,"name":"reese84","item":"https://seencxy.github.io/ja/glossary/reese84/"}]}
+</script>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary (EN)</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/ja/glossary/">日本語の用語集</a><a href="/glossary/" hreflang="en" lang="en">Glossary (EN)</a><a href="/id/glossary/" hreflang="id" lang="id">Indonesia</a><a href="https://www.tiam.codes/ja/">SolveHub API</a></nav>
 <h1><code>reese84</code> クッキーとは</h1>
-<p class="meta">最終確認 2026年11月10日 · 約5分</p>
+<p class="meta">最終確認 2026年11月10日 · 約8分</p>
 
-<p><strong>結論から:</strong> <code>reese84</code> は Imperva（旧 Incapsula）の JavaScript センサーが実行され、判定を通ったあとに発行されるクッキーです。寿命は短く、一般的に 5〜15 分。発行したセッション、User-Agent、IP に紐づきます。かつての <code>incap_ses</code> / <code>visid_incap</code> に代わって、ボット判定の本命になりました。</p>
+<p><strong>結論から:</strong> <code>reese84</code> は Imperva（旧 Incapsula）の JavaScript センサーがブラウザ上で走り、判定を通ったあとに発行されるクッキーです。寿命は短く、一般に 5〜15 分。発行したセッション、User-Agent、IP に紐づきます。かつての <code>incap_ses</code> / <code>visid_incap</code> の組に代わって、ボット判定の本命になりました。ただし今もその 2 つは Imperva 配下のサイトに現れます。</p>
 
-<h2>発行の流れ</h2>
-<p>ページはスクリプトを読み込みます。パスに <code>UT.mvc</code> を含むものが多いですが、サイトごとの固有 URL の場合もあります。スクリプトはブラウザの信号を集め、サイト固有の鍵で暗号化してエンドポイントに POST し、その応答としてクッキーの値が返ります。ここから 3 つの帰結があります。</p>
+<p><code>403</code> と Incapsula incident ID が出てここに来たなら <a href="#403">403 の節</a>へ。実ブラウザを回すか解決 API を呼ぶかで迷っているなら <a href="#handle">扱い方の 2 通り</a>へ。</p>
+
+<h2>値は実際どんな形をしているか</h2>
+<p><code>reese84</code> の値は不透明な文字列で、たいてい数百文字、URL セーフな base64 風（英数字と、ときどき <code>+</code> <code>/</code> <code>=</code>）です。読める形のタイムスタンプもユーザー ID も含みません。base64 デコードしても指紋が出るわけではなく、ノイズ以上のものは得られません。中身はサーバ側で鍵付きハッシュと突き合わせて検証されます。</p>
+<p>実務上の帰結は 2 つです。</p>
+<ul>
+<li>文字列だけを見て生きているかは分かりません。分かるのは次のリクエストの結果だけです。</li>
+<li>偽造はできません。署名鍵はサイトごとに違い、しかも更新されるため、同じベンダーの別プロパティで通った値は使い物になりません。</li>
+</ul>
+<p>Chrome の DevTools なら Application → Cookies に、保護されたホストの下、<code>Path</code> は <code>/</code>、多くの場合（ただし常にではない）<code>HttpOnly</code> 付きで現れます。<code>HttpOnly</code> が付いていれば <code>document.cookie</code> では見えません。ページに注入した JavaScript ではなく、レスポンスヘッダかブラウザコンテキスト側から読んでください。ここを取り違えて「クッキーが取れない」と悩む例が非常に多いところです。</p>
+
+<h2>発行の仕組み</h2>
+<p>ページはセンサースクリプトを読み込みます。パスに <code>_Incapsula_Resource</code> を含むもの、あるいはサイト固有の <code>UT.mvc</code> URL が多いところです。スクリプトはブラウザの信号を集め、サイト固有の鍵で暗号化してエンドポイントに POST し、その応答として <code>Set-Cookie</code> が返ります。ここから 3 つの帰結が直接出ます。</p>
 <ol>
-<li>そのスクリプトを動かさない限り、クッキーは計算できません。鍵はサイトごとに異なり、更新されます。</li>
-<li>スクリプトの URL そのものが分からないと要求できません。URL はサイトごとに違い、チャレンジ用 HTML の中にしか出てこないこともあります。</li>
-<li>取得後に別マシンへ移しても通りません。次のリクエストで紐づけが再検証されます。</li>
+<li>そのスクリプトを動かさない限りクッキーは計算できません。鍵はサイトごとに異なり、更新されます。</li>
+<li>スクリプトの URL が正確に分からないと要求できません。URL 自体がサイト固有で、まだ受け取っていないチャレンジ HTML の中にしか出てこないこともよくあります。</li>
+<li>取得後に別マシンへ移すと通りません。次のリクエストで紐づけが再検証されます。</li>
 </ol>
+<p>プロジェクトが壊れるのは 3 番目です。このクッキーは bearer トークンではなく、特定のクライアントに貼られた判定です。別の IP、別の <code>User-Agent</code>、別の TLS スタックへコピーした瞬間に無効になります。</p>
 
-<h2>なぜすぐ失効するのか</h2>
+<h2>なぜこれほど早く失効するのか</h2>
 <table>
 <tr><th>紐づけ先</th><th>破ったときの症状</th></tr>
 <tr><td>IP アドレス</td><td>数秒後のリクエストでも再チャレンジになります。</td></tr>
@@ -45,33 +70,68 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.
 <tr><td>クッキーの寿命（分単位）</td><td>動いていたのに実行の途中で落ちます。長いジョブはキャッシュではなく更新が必要です。</td></tr>
 <tr><td>リクエスト頻度</td><td>早期に失効します。50 回は耐えた値が、200 回目で落ちます。</td></tr>
 </table>
+<p>短い寿命は意図的です。5 分の窓は、あらゆる自動クライアントに「センサーを動かせること」を繰り返し証明させます。ボットファームが大規模にできないのはまさにそこです。スクレイパー側ではこれがアーキテクチャの要求に変わります。ログインではなく、更新ループです。</p>
+
+<h2>Imperva 配下かどうかの見分け方</h2>
+<p>最適化の前にベンダーを確定してください。Imperva の対処法は Cloudflare や Akamai の対処法ではありません。</p>
+<ul>
+<li>レスポンスヘッダ: <code>X-CDN: Incapsula</code>、そして多くの場合コロン区切りのタプルを持つ <code>X-Iinfo</code>。</li>
+<li>HTML: <code>_Incapsula_Resource</code> への参照、<code>UT.mvc</code> のスクリプト URL。</li>
+<li>クッキー: <code>reese84</code>、<code>incap_ses_*</code>、<code>visid_incap_*</code>、<code>nlbi_*</code> のいずれか。</li>
+<li>ブロックページ: 本文に「Incapsula incident ID」の語。</li>
+</ul>
+<p>代わりに <code>__cf_bm</code> / <code>cf_clearance</code> が出ているなら Cloudflare です → <a href="/ja/glossary/cf-clearance/">cf_clearance</a>。<code>_abck</code> / <code>bm_sz</code> なら Akamai です → <a href="/ja/glossary/akamai-abck/">_abck</a>。<code>_px3</code> なら PerimeterX です → <a href="/ja/glossary/px3/">_px3</a>。<code>datadome</code> なら DataDome です。</p>
+
+<h2 id="403">実際に返ってくる 403</h2>
+<p>Imperva のブロック応答は JSON のエラーではありません。HTTP <code>403</code> の完全な HTML ページで、<code>Request unsuccessful. Incapsula incident ID: 123-000000000-000000000000000</code> のような incident ID を含みます。この ID は Imperva 側の相関用ハンドルで、ブロック事象を彼らの側で識別するためのもので、こちらから引けるコードではありません。分かるのはどの層が止めたかです。</p>
+<table>
+<tr><th>403 の出どころ</th><th>たいていの直し方</th></tr>
+<tr><td><code>reese84</code> がまったく無い</td><td>一度解決して取得し、同じ IP から毎回のリクエストに付けて送ります。</td></tr>
+<tr><td><code>reese84</code> はあるが古い</td><td>取り直します。同じ値を再試行しても決定的に失敗します。</td></tr>
+<tr><td>クッキーがあり新鮮なのに止まる</td><td>フィンガープリントの不一致です。別クライアント向けに発行された値です。使う側のクライアントから解決し直してください。</td></tr>
+<tr><td>動いたあと N 回で止まる</td><td>レートです。速度を落とすか出口を分散し、失効が早まることを前提に置きます。</td></tr>
+</table>
 
 <h2>周辺のクッキー</h2>
 <ul>
-<li><code>incap_ses_*</code> ― セッション識別子。ゾーンごとに接尾辞が付きます。</li>
+<li><code>incap_ses_*</code> ― セッション識別子。1 セッションに 1 つ、ゾーンごとに接尾辞が付きます。</li>
 <li><code>visid_incap_*</code> ― 訪問者識別子。寿命は長く、再訪者のスコアリングに使われます。</li>
 <li><code>nlbi_*</code> ― ロードバランサのアフィニティ用。セキュリティ用ではありませんが、セッションの安定に効きます。</li>
+<li><code>__utmvc</code> ― センサーの管理用。同じサイトで並んで現れることがあります。</li>
 </ul>
+<p>どれも出口 IP をキーにした 1 つのクッキージャーにまとめてください。2 回の解決で得たクッキーを 1 つのジャーに混ぜるのは、自分からブロックを招く典型的なやり方です。</p>
 
-<h2>現実的な扱い方</h2>
-<p><strong>自分でセンサーを動かす。</strong> 固定 IP の実ブラウザならチャレンジを通り、短い寿命のあいだクッキーを保持できます。真っ当ですが、コストはかかります。</p>
-<p><strong>クッキーを要求する。</strong> URL（サイトが隠す場合はスクリプト URL も）を渡すと、新しい <code>reese84</code> と、それを使うべきプロキシ出口を返す API があります。肝心なのは、実リクエストもその出口から出ることです。出口が違えば、どれだけ新しいクッキーでも意味がありません。</p>
-<p><strong>そもそも避ける。</strong> Imperva 保護のサイトでも、サイトマップ、RSS、静的ファイル、一部の JSON API は保護外のことが多いです。欲しいデータがそこから取れるなら、クッキーは不要です。</p>
+<h2 id="handle">扱い方の 2 通り</h2>
+<p><strong>自分でセンサーを動かす。</strong> 固定 IP の実ブラウザならチャレンジを通り、短い寿命のあいだクッキーを保持できます。スクレイピング用のブラウザプールがやっていることで、真っ当ですがコストはかかります。Playwright なら形はこうです。</p>
+<pre>ctx = browser.new_context(proxy=PROXY)          # 毎回同じ出口
+page = ctx.new_page()
+page.goto(url)                                   # ここでセンサーが走る
+jar = await ctx.cookies()                        # reese84 が入っている
+# 以降の直接 HTTP 呼び出しも PROXY 経由のみ。
+# 403 が出たらこのブロックをやり直す</pre>
+<p>避けるべき間違いは 2 つです。1 つのコンテキスト内でプロキシを回すこと（クッキーは発行した出口に紐づきます）、実行をまたいでクッキーをキャッシュすること（その時点で死んでいます）。</p>
+<p><strong>クッキーを要求する。</strong> サイト URL（サイトが隠す場合はスクリプト URL も）を渡すと、新しい <code>reese84</code> と、それを使うべきプロキシ出口を返す解決 API があります。<a href="https://www.tiam.codes/">SolveHub</a> はこれを 1 つの REST エンドポイントで提供し、完了したタスク単位で課金します。肝心なのは、実リクエストもクッキーを生んだ同じ出口から出ることです。</p>
+<p>見落とされがちな第 3 の道もあります。Imperva 保護のサイトでも、サイトマップ、RSS、静的ファイル、一部の JSON API は完全に無保護のことが多いです。欲しいデータがそこから取れるなら、クッキーはまったく不要です。</p>
 
 <h2>よくある質問</h2>
-<p><strong>reese84 と incap_ses は同じものですか。</strong> いいえ。<code>incap_ses</code> はセッション ID で、<code>reese84</code> はセンサーが出した判定を運びます。</p>
-<p><strong>1 つのクッキーを並列リクエストで使い回せますか。</strong> 同じ IP とフィンガープリントなら、ごく短時間だけ可能です。急なファンアウトはそれ自体が失効の引き金になります。</p>
+<p><strong><code>reese84</code> と <code>incap_ses</code> は同じものですか。</strong> いいえ。<code>incap_ses</code> はセッション ID で、<code>reese84</code> はセンサーが出したボット判定を運びます。</p>
+<p><strong>1 つのクッキーを多数の並列リクエストで使い回せますか。</strong> 同じ IP と同じフィンガープリントなら、ごく短時間だけ可能です。急なファンアウトはそれ自体が失効の引き金になります。</p>
 <p><strong>JSON を期待したエンドポイントがチャレンジ HTML を返すのはなぜですか。</strong> クッキーが切れたか、セッションが変わったかです。同じ値を再試行せず、取り直してください。</p>
+<p><strong><code>requests</code> や <code>httpx</code> だけでも通りますか。</strong> 生きている値があれば通ります。ただしその HTTP クライアントの TLS フィンガープリントとヘッダが、値を発行したクライアントと一致する場合に限ります。素の <code>requests</code> はたいてい一致しません。これが「クッキーが効かない」に見える現象の正体で、実際は不一致なだけです。</p>
+<p><strong>どのくらいの頻度で更新すべきですか。</strong> 安全側の上限を 6〜10 分と見てください。<code>403</code> は再試行の合図ではなく、即時の更新の合図として扱います。</p>
+<p><strong>長寿命の <code>reese84</code> はありますか。</strong> まれにあります。すでに信頼済みの訪問者には長い窓を出すプロパティもありますが、コールドスタートからその状態には届きません。短い場合を前提に設計してください。</p>
 
 <footer>
-<p>執筆: Lsr。関連: <a href="/ja/glossary/akamai-abck/">_abck</a>、<a href="/ja/glossary/px3/">_px3</a>、<a href="/ja/glossary/cf-clearance/">cf_clearance</a>。Imperva のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/imperva">Imperva / Incapsula のドキュメント</a> にまとめています。</p>
+<p>執筆: Lsr。関連: <a href="/ja/glossary/akamai-abck/">_abck</a>、<a href="/ja/glossary/px3/">_px3</a>、<a href="/ja/glossary/cf-clearance/">cf_clearance</a>、<a href="/ja/glossary/">日本語の用語集</a>。Imperva のタスクを API で処理する方法は <a href="https://www.tiam.codes/ja/docs/imperva">Imperva / Incapsula のドキュメント</a> にまとめています。</p>
 </footer>
 
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"reese84 と incap_ses は同じものですか","acceptedAnswer":{"@type":"Answer","text":"いいえ。incap_ses はセッション識別子で、reese84 は Imperva の JavaScript センサーが出したボット判定を運ぶクッキーです。"}},
 {"@type":"Question","name":"1つの reese84 クッキーを多数の並列リクエストで使えますか","acceptedAnswer":{"@type":"Answer","text":"同じ IP アドレスとフィンガープリントであれば、ごく短時間のみ可能です。急激な並列利用は早期失効の引き金になります。"}},
-{"@type":"Question","name":"Imperva 保護のエンドポイントが JSON ではなくチャレンジ HTML を返すのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"クッキーが失効したか、セッションが変化したためです。同じ値で再試行せず、取得し直してください。"}}
+{"@type":"Question","name":"Imperva 保護のエンドポイントが JSON ではなくチャレンジ HTML を返すのはなぜですか","acceptedAnswer":{"@type":"Answer","text":"クッキーが失効したか、セッションが変化したためです。同じ値で再試行せず、取得し直してください。"}},
+{"@type":"Question","name":"reese84 クッキーは requests や httpx だけでも使えますか","acceptedAnswer":{"@type":"Answer","text":"生きている値があれば使えますが、HTTP クライアントの TLS フィンガープリントとヘッダが発行元と一致する必要があります。素の requests は通常一致しません。"}},
+{"@type":"Question","name":"reese84 クッキーはどのくらいの頻度で更新すべきですか","acceptedAnswer":{"@type":"Answer","text":"安全側の上限を 6 から 10 分と見てください。403 は再試行ではなく即時の更新の合図として扱います。"}}
 ]}
 </script>
 </body>

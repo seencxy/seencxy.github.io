@@ -6,6 +6,9 @@
 <title>What is the _px3 cookie? PerimeterX / HUMAN, explained</title>
 <meta name="description" content="The _px3 cookie is PerimeterX's signed pass: an encrypted payload with a score and an expiry the server enforces separately from the cookie's own Expires. What each part does, why copying it fails.">
 <link rel="canonical" href="https://seencxy.github.io/glossary/px3/">
+<link rel="alternate" hreflang="en" href="https://seencxy.github.io/glossary/px3/">
+<link rel="alternate" hreflang="ja" href="https://seencxy.github.io/ja/glossary/px3/">
+<link rel="alternate" hreflang="x-default" href="https://seencxy.github.io/glossary/px3/">
 <style>
 body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
 h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
@@ -19,7 +22,7 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.
 </style>
 </head>
 <body>
-<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="/ja/glossary/px3/" hreflang="ja" lang="ja">日本語</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
 <h1>What is the <code>_px3</code> cookie?</h1>
 <p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
 <p><strong>Short answer:</strong> <code>_px3</code> is the cookie PerimeterX (now HUMAN Security) issues to a browser that passed its sensor check. It carries a payload encrypted against a key the site holds, a short expiry inside the payload, and an HMAC signature. It is not a session token you can copy to a different client — the signature covers the payload, and the server re-signs on a schedule of its own.</p>
@@ -59,7 +62,7 @@ footer{margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e5e5;font-size:.
 <p><strong>Why does my <code>_px3</code> stop working before it expires?</strong> Because the server enforces its own lifetime from issuance, which can be shorter than the cookie's Expires attribute. Replace the jar entry on every Set-Cookie response.</p>
 <p><strong>Does <code>_px3</code> work from a different IP?</strong> Usually not for long. The payload records the IP and user agent of the issuing session, and a session evaluated under machine-speed traffic can be re-scored at the next re-sign.</p>
 <footer>
-<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/cf-clearance/">cf_clearance</a>.</p>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/cf-clearance/">cf_clearance</a>. Japanese edition: <a href="/ja/glossary/px3/" hreflang="ja" lang="ja">_px3 クッキーとは</a>.</p>
 </footer>
 
 <script type="application/ld+json">

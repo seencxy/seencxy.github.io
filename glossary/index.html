@@ -43,6 +43,21 @@ nav a{margin-right:1rem}
 <p>Clearance issued after DataDome's fingerprinting POST. Rotating proxies mid-session makes scoring worse, not better.</p>
 </div>
 
+<div class="card">
+<h3><a href="/glossary/px3/">_px3</a> — PerimeterX / HUMAN</h3>
+<p>The signed pass issued after the sensor check: an encrypted payload with a score, a timestamp and an HMAC. Its lifetime inside the payload is not the same as the cookie’s Expires.</p>
+</div>
+
+<div class="card">
+<h3><a href="/glossary/aws-waf-token/">aws-waf-token</a> — AWS WAF</h3>
+<p>A challenge token bound to one domain and a roughly 180-second window. You need the challenge script URL to mint one; the token alone is not enough.</p>
+</div>
+
+<div class="card">
+<h3><a href="/glossary/cf-bm/">cf_bm</a> — Cloudflare Bot Management</h3>
+<p>Cloudflare’s verdict about the client, refreshed about every 30 minutes. A verdict is not a pass — only cf_clearance skips a challenge.</p>
+</div>
+
 <h2>Terms that are not cookies</h2>
 <p><strong>Turnstile token</strong> — a widget output your own server verifies; it is not clearance and does not open the site by itself.<br>
 <strong>Sensor data</strong> — the payload Akamai's script builds; the cookie is derived from it, so a cookie without fresh sensor data ages badly.<br>

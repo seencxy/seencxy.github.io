@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is the cf_clearance cookie? Cloudflare clearance, explained</title>
+<meta name="description" content="cf_clearance is the cookie Cloudflare issues after a Managed Challenge is passed. What it contains, why it expires in 30 minutes, why it breaks when you rotate proxies, and how to reuse it properly.">
+<link rel="canonical" href="https://seencxy.github.io/glossary/cf-clearance/">
+<style>
+body{max-width:46rem;margin:3rem auto;padding:0 1.2rem;font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+h1{line-height:1.25;margin-bottom:.3rem}h2{margin-top:2rem;line-height:1.3}
+.meta{color:#666;font-size:.9rem}code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.95rem}th,td{border:1px solid #ddd;padding:.5rem;text-align:left;vertical-align:top}
+th{background:#fafafa}footer{margin:3rem 0 1rem;color:#666;font-size:.9rem;border-top:1px solid #eee;padding-top:1rem}
+nav a{margin-right:1rem}
+</style>
+</head>
+<body>
+<nav><a href="/">Anti-bot engineering notes</a><a href="/glossary/">Glossary</a><a href="https://www.tiam.codes/">SolveHub API</a></nav>
+
+<h1>What is the <code>cf_clearance</code> cookie?</h1>
+<p class="meta">Last reviewed 10 November 2026 · 5 min read</p>
+
+<p><strong>Short answer:</strong> <code>cf_clearance</code> is the cookie Cloudflare sets on your browser after it has decided you are not a bot. It is not a token you solve — it is a receipt issued by Cloudflare's edge, stamped with the challenge you passed, bound to your IP address and user agent, and valid for a limited time (30 minutes by default). Everything that goes wrong with it later goes wrong for one of those three reasons.</p>
+
+<h2>Where it comes from</h2>
+<p>The cookie appears only after one of three challenge types completes:</p>
+<ul>
+<li><strong>JS challenge</strong> — Cloudflare's "Checking your browser" interstitial. It runs a small JavaScript proof of work in the page, then the edge hands out clearance.</li>
+<li><strong>Managed Challenge</strong> — Cloudflare chooses between JS, a visible CAPTCHA, or nothing at all, per request. Which one ran is not visible from the client side.</li>
+<li><strong>Turnstile widget</strong> — the token your page gets from the widget is <em>not</em> the clearance cookie. The widget token goes to your own origin for server-side verification; <code>cf_clearance</code> is set separately by Cloudflare's edge on the same request flow.</li>
+</ul>
+<p>That distinction matters: teams routinely pay for a Turnstile token, paste it into a header, and wonder why the page is still a challenge page. The token answers "a human solved the widget"; the cookie answers "this connection finished the challenge".</p>
+
+<h2>What is inside it</h2>
+<p>The value looks like an opaque string of roughly 40–60 characters plus a dotted suffix, and it is signed. Cloudflare does not publish the format, but the practical implication does not depend on the internals: you cannot mint one client-side without executing the challenge, and you cannot move one between machines without it dying.</p>
+
+<table>
+<tr><th>Bound to</th><th>What happens if it changes</th></tr>
+<tr><td>IP address</td><td>Clearance is dropped at once; you get the challenge again. This is why rotating proxies makes blocking <em>worse</em>, not better.</td></tr>
+<tr><td>User agent / TLS fingerprint</td><td>Same effect. A browser-issued cookie replayed from <code>requests</code> usually dies on the fingerprint alone.</td></tr>
+<tr><td>Zone</td><td>A cookie from one site never works on another, even behind the same Cloudflare account.</td></tr>
+<tr><td>Time</td><td>Default lifetime is 30 minutes. Session-scoped cookies disappear when the browser closes; a stale cookie is worse than none, because it signals a replay.</td></tr>
+</table>
+
+<h2>The three cookies people confuse with it</h2>
+<ul>
+<li><code>__cf_bm</code> — bot management telemetry, not clearance. It is set routinely and proves nothing.</li>
+<li><code>cf_chl_2</code> / <code>cf_chl_prog</code> — transient state of the challenge currently running. If you see these, you have not passed yet.</li>
+<li><code>cf_clearance</code> — the only one that means "past the edge".</li>
+</ul>
+
+<h2>How to get one on purpose</h2>
+<p>There are three honest paths, and the third is the one people skip:</p>
+<ol>
+<li><strong>Drive a real browser.</strong> Playwright or Selenium on the same machine that will use the cookie. Pass the challenge once, export the cookie jar, and keep the same IP and user agent for every request that follows. If the challenge is interactive (Turnstile), this does not work unattended.</li>
+<li><strong>Use a solving service.</strong> For scripting workloads, an API that returns <code>cf_clearance</code> for a given site key and URL is the usual route; SolveHub exposes <a href="https://www.tiam.codes/">one REST endpoint</a> for Cloudflare interstitial and Turnstile tasks and bills per completed task. Whatever service you use, check that the returned cookie is paired with the same proxy exit that will make the real requests.</li>
+<li><strong>Do not need it.</strong> If you can hit the origin's sitemap, RSS feed, API endpoint or a partner data feed, the challenge never appears. This is the cheapest option and the least often considered.</li>
+</ol>
+
+<h2>Why reuse fails in practice</h2>
+<ul>
+<li>Cookie exported, then the request goes out through a different proxy — dead on the IP binding.</li>
+<li>Cookie exported from Chrome, replayed with a Python <code>requests</code> header set — dead on the TLS fingerprint.</li>
+<li>Cookie cached in Redis with a 24-hour TTL — dead after 30 minutes, but your code keeps sending it.</li>
+<li>Cookie shared across parallel workers — the first two work, the rest look like credential stuffing.</li>
+</ul>
+<p>The fix is architectural, not a better solver: pin one session to one exit IP, one fingerprint and one cookie, and refresh the whole triple when the cookie expires.</p>
+
+<h2>FAQ</h2>
+<p><strong>Does <code>cf_clearance</code> work on a different subdomain?</strong> No. Clearance is per hostname and zone.</p>
+<p><strong>Can I generate it without a browser?</strong> Not by computing it. Only by completing the challenge, which needs a JS engine or a service that runs one for you.</p>
+<p><strong>Why do I get a 403 with a valid-looking cookie?</strong> Usually IP or user-agent drift between issuance and use. Log both on both sides before blaming the solver.</p>
+
+<footer>
+<p>Written by <a href="https://github.com/seencxy">Lsr</a>, who builds <a href="https://www.tiam.codes/">SolveHub</a>, a CAPTCHA and anti-bot solving API for authorized testing. Related: <a href="/glossary/akamai-abck/">_abck</a>, <a href="/glossary/reese84/">reese84</a>, <a href="/glossary/datadome-cookie/">DataDome cookie</a>.</p>
+</footer>
+
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Does cf_clearance work on a different subdomain?","acceptedAnswer":{"@type":"Answer","text":"No. Cloudflare clearance is scoped to the hostname and zone that issued it."}},
+{"@type":"Question","name":"Can cf_clearance be generated without a browser?","acceptedAnswer":{"@type":"Answer","text":"Not by computing it. The cookie can only be obtained by completing the challenge, which requires a JavaScript engine or a solving service."}},
+{"@type":"Question","name":"Why do I get a 403 with a valid cf_clearance cookie?","acceptedAnswer":{"@type":"Answer","text":"Usually because the IP address or user agent changed between issuance and use. The cookie is bound to both."}}
+]}
+</script>
+</body>
+</html>
